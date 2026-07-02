@@ -149,7 +149,10 @@ fun KeyboardInputArea(
                     .clickable(
                         indication = null,
                         interactionSource = remember { MutableInteractionSource() }
-                    ) { onEnter() }
+                    ) {
+                        onEnter()
+                        textFieldValue = TextFieldValue("")
+                    }
             )
 
             if (textFieldValue.text.isNotEmpty()) {
