@@ -36,8 +36,8 @@ fun ConnectionScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
     ) {
         Row(
             modifier = Modifier
