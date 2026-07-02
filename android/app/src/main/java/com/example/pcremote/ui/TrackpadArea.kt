@@ -103,14 +103,6 @@ fun TrackpadArea(
                                     ) {
                                         tapCount = 0f
                                     }
-                                    if (tapCount >= 1f &&
-                                        now - lastTapTime < DOUBLE_TAP_WINDOW_MS &&
-                                        now - lastTapTime > 0L
-                                    ) {
-                                        tapCount = 2f
-                                        dragActive = true
-                                        onMouseDown()
-                                    }
                                 } else {
                                     val dx = ptr.position.x - ptr.previousPosition.x
                                     val dy = ptr.position.y - ptr.previousPosition.y
@@ -125,6 +117,14 @@ fun TrackpadArea(
                                             )
                                         }
                                     } else if (step > 0.3f) {
+                                        if (tapCount >= 1f &&
+                                            now - lastTapTime < DOUBLE_TAP_WINDOW_MS &&
+                                            now - lastTapTime > 0L
+                                        ) {
+                                            tapCount = 2f
+                                            dragActive = true
+                                            onMouseDown()
+                                        }
                                         onMouseMove(
                                             accelerate(dx, moveSensitivity),
                                             accelerate(dy, moveSensitivity),
