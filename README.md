@@ -4,6 +4,14 @@ Control your PC's mouse and keyboard from your Android phone over WiFi. Your pho
 
 Works on Linux (tested on Fedora 44 with Wayland). Uses the phone's keyboard layout natively (Italian tested, others should work too).
 
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/screenshot1.jpeg" alt="Connection screen" width="30%">
+  <img src="screenshots/screenshot2.jpeg" alt="Trackpad + keyboard" width="30%">
+  <img src="screenshots/screenshot3.jpeg" alt="Settings" width="30%">
+</p>
+
 ## How it works
 
 1. Run `server.py` on your PC — it starts a WebSocket server and shows a QR code
