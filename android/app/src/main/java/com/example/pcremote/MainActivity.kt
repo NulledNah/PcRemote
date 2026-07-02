@@ -15,6 +15,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.pcremote.ui.ConnectionScreen
+import com.example.pcremote.ui.PCRemoteTheme
 import com.example.pcremote.ui.RemoteScreen
 import com.example.pcremote.viewmodel.RemoteViewModel
 import com.journeyapps.barcodescanner.ScanContract
@@ -76,18 +77,20 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            PCRemoteApp(
-                viewModel = viewModel,
-                onScanQr = {
-                    val options = ScanOptions().apply {
-                        setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                        setPrompt("Scan QR code from server terminal")
-                        setBeepEnabled(false)
-                        setOrientationLocked(true)
+            PCRemoteTheme(darkTheme = viewModel.isDarkMode) {
+                PCRemoteApp(
+                    viewModel = viewModel,
+                    onScanQr = {
+                        val options = ScanOptions().apply {
+                            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                            setPrompt("Scan QR code from server terminal")
+                            setBeepEnabled(false)
+                            setOrientationLocked(true)
+                        }
+                        qrScanLauncher.launch(options)
                     }
-                    qrScanLauncher.launch(options)
-                }
-            )
+                )
+            }
         }
     }
 }

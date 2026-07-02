@@ -35,10 +35,12 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     var moveSensitivity by mutableStateOf(0.7f)
     var savedHost by mutableStateOf("")
     var savedPort by mutableStateOf("")
+    var isDarkMode by mutableStateOf(false)
 
     init {
         savedHost = prefs.getString("saved_host", "") ?: ""
         savedPort = prefs.getString("saved_port", "") ?: ""
+        isDarkMode = prefs.getBoolean("dark_mode", false)
     }
 
     private val connection = object : ServiceConnection {
@@ -87,6 +89,11 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
             context.unbindService(connection)
             bound = false
         }
+    }
+
+    fun toggleDarkMode(enabled: Boolean) {
+        isDarkMode = enabled
+        prefs.edit().putBoolean("dark_mode", enabled).apply()
     }
 
     fun connect() {

@@ -72,6 +72,17 @@ fun RemoteScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Text("Dark mode")
+                        Switch(
+                            checked = viewModel.isDarkMode,
+                            onCheckedChange = { viewModel.toggleDarkMode(it) }
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text("Autocorrect")
                         Switch(
                             checked = viewModel.useAutocorrect,

@@ -37,12 +37,12 @@ fun ConnectionScreen(
         verticalArrangement = Arrangement.Center
     ) {
         val fieldColors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = Color(0xFF1A1A1A),
-            unfocusedTextColor = Color(0xFF1A1A1A),
-            cursorColor = Color(0xFF1565C0),
-            focusedLabelColor = Color(0xFF1565C0),
-            unfocusedLabelColor = Color(0xFF424242),
-            focusedBorderColor = Color(0xFF1565C0),
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+            cursorColor = MaterialTheme.colorScheme.primary,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
         )
 
         Text(
