@@ -1,6 +1,7 @@
 package com.example.pcremote.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -9,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -132,6 +134,44 @@ fun KeyboardInputArea(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 8.dp)
             )
+
+            Text(
+                text = "\u23CE",
+                fontSize = 20.sp,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .padding(start = 8.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceContainerHighest,
+                        shape = MaterialTheme.shapes.small
+                    )
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { onEnter() }
+            )
+
+            if (textFieldValue.text.isNotEmpty()) {
+                Text(
+                    text = "\u2715",
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .padding(start = 6.dp)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceContainerHighest,
+                            shape = MaterialTheme.shapes.small
+                        )
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) {
+                        textFieldValue = TextFieldValue("")
+                    }
+                )
+            }
         }
     }
 }
