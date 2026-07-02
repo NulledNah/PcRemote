@@ -130,7 +130,9 @@ fun PCRemoteApp(
                 onUseSaved = {
                     viewModel.host = viewModel.savedHost
                     viewModel.port = viewModel.savedPort
-                }
+                },
+                isDarkMode = viewModel.isDarkMode,
+                onToggleDarkMode = { viewModel.toggleDarkMode(it) }
             )
         }
         Screen.REMOTE -> {
