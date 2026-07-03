@@ -371,8 +371,7 @@ def get_volume() -> dict:
         )
         m = re.search(r'(\d+)%', r.stdout)
         vol = int(m.group(1)) if m else 50
-    except Exception as e:
-        print(f"  vol get error: {e}", flush=True)
+    except Exception:
         vol = 50
 
     try:
@@ -380,10 +379,8 @@ def get_volume() -> dict:
             ["pactl", "get-sink-mute", "@DEFAULT_SINK@"],
             capture_output=True, text=True, timeout=3
         )
-        print(f"  pactl mute: {r.stdout.strip()}", flush=True)
-        muted = "yes" in r.stdout.lower()
-    except Exception as e:
-        print(f"  mute get error: {e}", flush=True)
+        muted = "yes" in r.stdout.lower() or "sì" in r.stdout.lower()
+    except Exception:
         muted = False
 
     return {"volume": vol, "muted": muted}
@@ -392,28 +389,22 @@ def get_volume() -> dict:
 def set_volume(vol: int):
     try:
         vol = max(0, min(100, int(vol)))
-        r = subprocess.run(
+        subprocess.run(
             ["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{vol}%"],
             capture_output=True, timeout=3
         )
-        if r.returncode != 0:
-            print(f"  vol set failed: {r.stderr}", flush=True)
-    except Exception as e:
-        print(f"  vol set error: {e}", flush=True)
+    except Exception:
+        pass
 
 
 def toggle_mute() -> bool:
     try:
-        r = subprocess.run(
+        subprocess.run(
             ["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"],
             capture_output=True, timeout=3
         )
-        print(f"  toggle_mute: code={r.returncode}", flush=True)
-        if r.returncode != 0:
-            print(f"  toggle_mute stderr: {r.stderr}", flush=True)
         return get_volume()["muted"]
-    except Exception as e:
-        print(f"  toggle_mute error: {e}", flush=True)
+    except Exception:
         return False
 
 
