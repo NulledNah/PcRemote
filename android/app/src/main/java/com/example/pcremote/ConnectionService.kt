@@ -111,7 +111,7 @@ class ConnectionService : Service() {
         val notification = Notification.Builder(this, CHANNEL_ID)
             .setContentTitle("PC Remote")
             .setContentText("Connected to $currentHost")
-            .setSmallIcon(android.R.drawable.ic_menu_manage)
+            .setSmallIcon(com.example.pcremote.R.drawable.ic_notification)
             .setOngoing(true)
             .setContentIntent(openPendingIntent)
             .addAction(
