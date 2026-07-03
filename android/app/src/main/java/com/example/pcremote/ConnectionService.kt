@@ -73,6 +73,7 @@ class ConnectionService : Service() {
 
     fun send(message: Any) {
         if (isConnected) {
+            Log.d("PcRemote", "send: ${message.javaClass.simpleName}")
             webSocketManager.send(message)
         }
     }

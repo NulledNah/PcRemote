@@ -202,6 +202,7 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun sendKeyDown(code: String) {
+        Log.d("PcRemote", "key: $code")
         service?.send(KeyAction("kd", code))
     }
 
@@ -222,7 +223,8 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun sendComboKeyTap(charSequence: CharSequence) {
-        service?.send(TextMessage("text", charSequence.toString()))
+        Log.d("PcRemote", "sendText: ${charSequence}")
+        service?.send(TextMessage("tx", charSequence.toString()))
     }
 
     fun sendText(text: String) {
