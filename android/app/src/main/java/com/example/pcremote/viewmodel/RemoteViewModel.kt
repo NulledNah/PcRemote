@@ -73,7 +73,7 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
                 error = msg
                 isConnected = false
             }
-            service?.onMessage = { text ->
+            service?.setOnMessageListener { text ->
                 handleServerMessage(text)
             }
 

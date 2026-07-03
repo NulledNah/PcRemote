@@ -95,23 +95,21 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN) {
-            val vm = viewModelRef
-            if (vm?.isConnected == true) {
-                when (event.keyCode) {
-                    KeyEvent.KEYCODE_VOLUME_UP -> {
-                        vm.sendPcVolume(vm.pcVolume + 5)
-                        return true
-                    }
-                    KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                        vm.sendPcVolume(vm.pcVolume - 5)
-                        return true
-                    }
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        val vm = viewModelRef
+        if (vm?.isConnected == true) {
+            when (keyCode) {
+                KeyEvent.KEYCODE_VOLUME_UP -> {
+                    vm.sendPcVolume(vm.pcVolume + 5)
+                    return true
+                }
+                KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                    vm.sendPcVolume(vm.pcVolume - 5)
+                    return true
                 }
             }
         }
-        return super.dispatchKeyEvent(event)
+        return super.onKeyDown(keyCode, event)
     }
 }
 

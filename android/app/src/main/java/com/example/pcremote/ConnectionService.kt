@@ -74,6 +74,10 @@ class ConnectionService : Service() {
         }
     }
 
+    fun setOnMessageListener(listener: (String) -> Unit) {
+        webSocketManager.onMessage = listener
+    }
+
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
