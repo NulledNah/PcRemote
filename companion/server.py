@@ -418,33 +418,33 @@ async def handle_client(websocket, input_dev: InputDevice):
             except json.JSONDecodeError:
                 continue
 
-            msg_type = data.get("type", "")
+            msg_type = data.get("t", "")
             try:
-                if msg_type == "mouse_move":
+                if msg_type == "m":
                     input_dev.mouse_move(
-                        data.get("dx", 0),
-                        data.get("dy", 0),
+                        data.get("x", 0),
+                        data.get("y", 0),
                     )
-                elif msg_type == "mouse_down":
-                    input_dev.mouse_button(data.get("button", "left"), "down")
-                elif msg_type == "mouse_up":
-                    input_dev.mouse_button(data.get("button", "left"), "up")
-                elif msg_type == "mouse_scroll":
+                elif msg_type == "md":
+                    input_dev.mouse_button(data.get("b", "left"), "down")
+                elif msg_type == "mu":
+                    input_dev.mouse_button(data.get("b", "left"), "up")
+                elif msg_type == "s":
                     input_dev.mouse_scroll(
-                        data.get("dx", 0),
-                        data.get("dy", 0),
+                        data.get("x", 0),
+                        data.get("y", 0),
                     )
-                elif msg_type == "key_down":
-                    name = data.get("code", "")
+                elif msg_type == "kd":
+                    name = data.get("c", "")
                     if needs_shift(name):
                         input_dev.key("KEY_LEFTSHIFT", "down")
                     input_dev.key(name, "down")
                     if needs_shift(name):
                         input_dev.key("KEY_LEFTSHIFT", "up")
-                elif msg_type == "key_up":
-                    input_dev.key(data.get("code", ""), "up")
-                elif msg_type == "key_tap":
-                    name = data.get("code", "")
+                elif msg_type == "ku":
+                    input_dev.key(data.get("c", ""), "up")
+                elif msg_type == "kt":
+                    name = data.get("c", "")
                     shift = needs_shift(name)
                     if shift:
                         input_dev.key("KEY_LEFTSHIFT", "down")
@@ -452,22 +452,25 @@ async def handle_client(websocket, input_dev: InputDevice):
                     input_dev.key(name, "up")
                     if shift:
                         input_dev.key("KEY_LEFTSHIFT", "up")
-                elif msg_type == "text":
-                    input_dev.type_text(data.get("text", ""))
-                elif msg_type == "vol_get":
-                    await websocket.send(json.dumps(
-                        {"type": "vol_state", "from": "vol_get", **get_volume()}
-                    ))
-                elif msg_type == "vol_set":
-                    set_volume(data.get("volume", 50))
-                    await websocket.send(json.dumps(
-                        {"type": "vol_state", "from": "vol_set", **get_volume()}
-                    ))
-                elif msg_type == "vol_mute":
+                elif msg_type == "tx":
+                    input_dev.type_text(data.get("tx", ""))
+                elif msg_type == "vg":
+                    await websocket.send(json.dumps({
+                        "t": "vs", "f": "vg", "v": get_volume()["volume"],
+                        "m": get_volume()["muted"]
+                    }))
+                elif msg_type == "vs":
+                    set_volume(data.get("v", 50))
+                    await websocket.send(json.dumps({
+                        "t": "vs", "f": "vs", "v": get_volume()["volume"],
+                        "m": get_volume()["muted"]
+                    }))
+                elif msg_type == "vm":
                     toggle_mute()
-                    await websocket.send(json.dumps(
-                        {"type": "vol_state", "from": "vol_mute", **get_volume()}
-                    ))
+                    await websocket.send(json.dumps({
+                        "t": "vs", "f": "vm", "v": get_volume()["volume"],
+                        "m": get_volume()["muted"]
+                    }))
             except Exception as e:
                 print(f"  Error processing message: {e}")
     except websockets.exceptions.ConnectionClosed:

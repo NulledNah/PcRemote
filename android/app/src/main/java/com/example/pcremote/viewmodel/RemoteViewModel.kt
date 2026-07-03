@@ -116,8 +116,12 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun fetchVolume() {
-        service?.send(VolGet())
+        if (!pollingPaused) {
+            service?.send(VolGet())
+        }
     }
+
+    var pollingPaused by mutableStateOf(false)
 
     fun sendPcVolume(vol: Int) {
         val clamped = vol.coerceIn(0, 100)
@@ -153,12 +157,11 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     private fun handleServerMessage(text: String) {
         try {
             val json = JSONObject(text)
-            if (json.optString("type") == "vol_state") {
-                val newVol = json.optInt("volume", pcVolume)
-                val newMuted = json.optBoolean("muted", pcMuted)
-                Log.d("PcRemote", "vol_state: vol=$newVol muted=$newMuted from=${json.optString("from")}")
-                pcVolume = newVol
-                pcMuted = newMuted
+            val typeStr = json.optString("t")
+            if (typeStr == "vs") {
+                pcVolume = json.optInt("v", pcVolume)
+                pcMuted = json.optBoolean("m", pcMuted)
+                Log.d("PcRemote", "vol_state: vol=$pcVolume muted=$pcMuted from=${json.optString("f")}")
             }
         } catch (e: Exception) {
             Log.e("PcRemote", "Failed to parse: $text", e)
@@ -171,15 +174,15 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun sendMouseMove(dx: Float, dy: Float) {
-        service?.send(MouseMove("mouse_move", dx, dy))
+        service?.send(MouseMove(dx = dx, dy = dy))
     }
 
     fun sendMouseDown(button: String) {
-        service?.send(MouseButton("mouse_down", button))
+        service?.send(MouseButton("md", button))
     }
 
     fun sendMouseUp(button: String) {
-        service?.send(MouseButton("mouse_up", button))
+        service?.send(MouseButton("mu", button))
     }
 
     fun sendMouseClick(button: String = "left") {
@@ -195,15 +198,15 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun sendMouseScroll(dy: Float = 0f, dx: Float = 0f) {
-        service?.send(MouseScroll("mouse_scroll", dy, dx))
+        service?.send(MouseScroll(dy = dy, dx = dx))
     }
 
     fun sendKeyDown(code: String) {
-        service?.send(KeyAction("key_down", code))
+        service?.send(KeyAction("kd", code))
     }
 
     fun sendKeyUp(code: String) {
-        service?.send(KeyAction("key_up", code))
+        service?.send(KeyAction("ku", code))
     }
 
     fun sendKeyTap(code: String) {

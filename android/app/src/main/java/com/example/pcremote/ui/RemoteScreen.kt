@@ -176,6 +176,12 @@ fun RemoteScreen(
             onMiddleClick = {
                 viewModel.sendMiddleClick()
             },
+            onPointerDown = {
+                viewModel.pollingPaused = true
+            },
+            onAllReleased = {
+                viewModel.pollingPaused = false
+            },
             moveSensitivity = viewModel.moveSensitivity,
             scrollSensitivity = viewModel.scrollSensitivity,
             scrollInverted = viewModel.scrollInverted,

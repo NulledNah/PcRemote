@@ -1,43 +1,46 @@
 package com.example.pcremote.network
 
+import com.google.gson.annotations.SerializedName
+
 data class MouseMove(
-    val type: String = "mouse_move",
-    val dx: Float,
-    val dy: Float
+    @SerializedName("t") val type: String = "m",
+    @SerializedName("x") val dx: Float,
+    @SerializedName("y") val dy: Float
 )
 
 data class MouseButton(
-    val type: String,
-    val button: String
+    @SerializedName("t") val type: String,
+    @SerializedName("b") val button: String
 )
 
 data class MouseScroll(
-    val type: String = "mouse_scroll",
-    val dy: Float = 0f,
-    val dx: Float = 0f
+    @SerializedName("t") val type: String = "s",
+    @SerializedName("y") val dy: Float = 0f,
+    @SerializedName("x") val dx: Float = 0f
 )
 
 data class KeyAction(
-    val type: String,
-    val code: String
+    @SerializedName("t") val type: String,
+    @SerializedName("c") val code: String
 )
 
 data class TextMessage(
-    val type: String = "text",
-    val text: String
+    @SerializedName("t") val type: String = "tx",
+    @SerializedName("tx") val text: String
 )
 
-data class VolGet(val type: String = "vol_get")
+data class VolGet(@SerializedName("t") val type: String = "vg")
 
 data class VolSet(
-    val type: String = "vol_set",
-    val volume: Int
+    @SerializedName("t") val type: String = "vs",
+    @SerializedName("v") val volume: Int
 )
 
-data class VolMute(val type: String = "vol_mute")
+data class VolMute(@SerializedName("t") val type: String = "vm")
 
 data class VolState(
-    val type: String = "vol_state",
-    val volume: Int = 50,
-    val muted: Boolean = false
+    @SerializedName("t") val type: String = "",
+    @SerializedName("v") val volume: Int = 50,
+    @SerializedName("m") val muted: Boolean = false,
+    @SerializedName("f") val from: String = ""
 )

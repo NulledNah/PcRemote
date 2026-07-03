@@ -36,6 +36,8 @@ fun TrackpadArea(
     moveSensitivity: Float = 0.7f,
     scrollSensitivity: Float = 1f,
     scrollInverted: Boolean = false,
+    onPointerDown: () -> Unit = {},
+    onAllReleased: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var totalDist by remember { mutableFloatStateOf(0f) }
@@ -46,12 +48,37 @@ fun TrackpadArea(
     var pointerCount by remember { mutableFloatStateOf(0f) }
     var lastTapTime by remember { mutableLongStateOf(0L) }
     var tapCount by remember { mutableFloatStateOf(0f) }
+    var lastSendTime by remember { mutableLongStateOf(0L) }
+    var accDx by remember { mutableFloatStateOf(0f) }
+    var accDy by remember { mutableFloatStateOf(0f) }
+    var fingersDown by remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .pointerInput(moveSensitivity, scrollSensitivity) {
+                val sendMouse: (Float, Float, Long) -> Unit = { dx, dy, now ->
+                    accDx += dx
+                    accDy += dy
+                    if (now - lastSendTime >= 8) {
+                        if (abs(accDx) > 0.2f || abs(accDy) > 0.2f) {
+                            onMouseMove(accDx, accDy)
+                        }
+                        accDx = 0f
+                        accDy = 0f
+                        lastSendTime = now
+                    }
+                }
+                val flushMouse: () -> Unit = {
+                    if (abs(accDx) > 0.2f || abs(accDy) > 0.2f) {
+                        onMouseMove(accDx, accDy)
+                    }
+                    accDx = 0f
+                    accDy = 0f
+                    lastSendTime = 0L
+                }
+
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent()
@@ -72,7 +99,6 @@ fun TrackpadArea(
                                                 now - lastTapTime < DOUBLE_TAP_WINDOW_MS &&
                                                 now - lastTapTime > 0L
                                             ) {
-                                                // Second tap completed fast
                                                 tapCount = 2f
                                             } else {
                                                 onLeftClick()
@@ -87,6 +113,11 @@ fun TrackpadArea(
                                 ) {
                                     tapCount = 0f
                                 }
+                                flushMouse()
+                                if (fingersDown) {
+                                    fingersDown = false
+                                    onAllReleased()
+                                }
                                 totalDist = 0f
                                 dragActive = false
                                 twoFingerActive = false
@@ -97,6 +128,10 @@ fun TrackpadArea(
                                 val ptr = active[0]
                                 if (!ptr.previousPressed) {
                                     totalDist = 0f
+                                    if (!fingersDown) {
+                                        fingersDown = true
+                                        onPointerDown()
+                                    }
 
                                     if (tapCount >= 1f &&
                                         now - lastTapTime > DOUBLE_TAP_WINDOW_MS
@@ -111,9 +146,10 @@ fun TrackpadArea(
 
                                     if (dragActive) {
                                         if (step > 0.3f) {
-                                            onMouseMove(
+                                            sendMouse(
                                                 accelerate(dx, moveSensitivity),
                                                 accelerate(dy, moveSensitivity),
+                                                now
                                             )
                                         }
                                     } else if (step > 0.3f) {
@@ -125,9 +161,10 @@ fun TrackpadArea(
                                             dragActive = true
                                             onMouseDown()
                                         }
-                                        onMouseMove(
+                                        sendMouse(
                                             accelerate(dx, moveSensitivity),
                                             accelerate(dy, moveSensitivity),
+                                            now
                                         )
                                     }
                                 }
