@@ -9,17 +9,17 @@ Works on Linux (tested on Fedora 44 with Wayland). Uses the phone's keyboard lay
 ### Light mode
 
 <p align="center">
-  <img src="screenshots/WhatsApp Unknown 2026-07-02 at 21.25.37/screenshotLight3.jpeg" alt="Settings" width="30%">
-  <img src="screenshots/WhatsApp Unknown 2026-07-02 at 21.25.37/screenshotLight2.jpeg" alt="Trackpad + keyboard" width="30%">
-  <img src="screenshots/WhatsApp Unknown 2026-07-02 at 21.25.37/screenshotLight1.jpeg" alt="Connection screen" width="30%">
+  <img src="screenshots/screenshotLight3.jpeg" alt="Settings" width="30%">
+  <img src="screenshots/screenshotLight2.jpeg" alt="Trackpad + keyboard" width="30%">
+  <img src="screenshots/screenshotLight1.jpeg" alt="Connection screen" width="30%">
 </p>
 
 ### Dark mode
 
 <p align="center">
-  <img src="screenshots/WhatsApp Unknown 2026-07-02 at 21.25.37/screenshotDark3.jpeg" alt="Settings dark" width="30%">
-  <img src="screenshots/WhatsApp Unknown 2026-07-02 at 21.25.37/screenshotDark2.jpeg" alt="Trackpad + keyboard dark" width="30%">
-  <img src="screenshots/WhatsApp Unknown 2026-07-02 at 21.25.37/screenshotDark1.jpeg" alt="Connection screen dark" width="30%">
+  <img src="screenshots/screenshotDark3.jpeg" alt="Settings dark" width="30%">
+  <img src="screenshots/screenshotDark2.jpeg" alt="Trackpad + keyboard dark" width="30%">
+  <img src="screenshots/screenshotDark1.jpeg" alt="Connection screen dark" width="30%">
 </p>
 
 ## How it works
