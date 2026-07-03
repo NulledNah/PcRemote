@@ -17,6 +17,7 @@ class WebSocketManager {
     var onConnected: (() -> Unit)? = null
     var onDisconnected: (() -> Unit)? = null
     var onError: ((String) -> Unit)? = null
+    var onMessage: ((String) -> Unit)? = null
 
     val isConnected: Boolean
         get() = webSocket != null
@@ -47,6 +48,7 @@ class WebSocketManager {
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
+                onMessage?.invoke(text)
             }
         })
     }

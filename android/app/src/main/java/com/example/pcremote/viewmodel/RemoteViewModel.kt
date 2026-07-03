@@ -8,16 +8,20 @@ import android.content.ServiceConnection
 import android.content.SharedPreferences
 import android.os.IBinder
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pcremote.ConnectionService
 import com.example.pcremote.network.*
+import com.google.gson.Gson
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class RemoteViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val gson = Gson()
 
     private val prefs: SharedPreferences =
         application.getSharedPreferences("pc_remote_prefs", Context.MODE_PRIVATE)
@@ -36,6 +40,8 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     var savedHost by mutableStateOf("")
     var savedPort by mutableStateOf("")
     var isDarkMode by mutableStateOf(false)
+    var pcVolume by mutableIntStateOf(50)
+    var pcMuted by mutableStateOf(false)
 
     init {
         savedHost = prefs.getString("saved_host", "") ?: ""
@@ -57,6 +63,8 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
                     .apply()
                 savedHost = host
                 savedPort = port
+                fetchVolume()
+                startVolumePolling()
             }
             service?.onDisconnected = {
                 isConnected = false
@@ -64,6 +72,9 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
             service?.onError = { msg ->
                 error = msg
                 isConnected = false
+            }
+            service?.onMessage = { text ->
+                handleServerMessage(text)
             }
 
             isConnected = service?.isConnected ?: false
@@ -101,6 +112,38 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
             val portNum = port.toIntOrNull() ?: 8765
             error = null
             service?.connect(host, portNum)
+        }
+    }
+
+    fun fetchVolume() {
+        service?.send(VolGet())
+    }
+
+    fun sendPcVolume(vol: Int) {
+        service?.send(VolSet(volume = vol.coerceIn(0, 100)))
+    }
+
+    fun togglePcMute() {
+        service?.send(VolMute())
+    }
+
+    private fun startVolumePolling() {
+        viewModelScope.launch {
+            while (isConnected) {
+                delay(3000)
+                if (isConnected) fetchVolume()
+            }
+        }
+    }
+
+    private fun handleServerMessage(text: String) {
+        try {
+            val state = gson.fromJson(text, VolState::class.java)
+            if (state.type == "vol_state") {
+                pcVolume = state.volume
+                pcMuted = state.muted
+            }
+        } catch (_: Exception) {
         }
     }
 

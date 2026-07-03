@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -92,6 +93,25 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            val vm = viewModelRef
+            if (vm?.isConnected == true) {
+                when (event.keyCode) {
+                    KeyEvent.KEYCODE_VOLUME_UP -> {
+                        vm.sendPcVolume(vm.pcVolume + 5)
+                        return true
+                    }
+                    KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                        vm.sendPcVolume(vm.pcVolume - 5)
+                        return true
+                    }
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
 }
 

@@ -11,6 +11,8 @@ import argparse
 import socket
 import signal
 import sys
+import subprocess
+import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
@@ -361,6 +363,51 @@ def print_qr_code(data: str):
         pass
 
 
+def get_volume() -> dict:
+    try:
+        r = subprocess.run(
+            ["pactl", "get-sink-volume", "@DEFAULT_SINK@"],
+            capture_output=True, text=True, timeout=3
+        )
+        m = re.search(r'(\d+)%', r.stdout)
+        vol = int(m.group(1)) if m else 50
+    except Exception:
+        vol = 50
+
+    try:
+        r = subprocess.run(
+            ["pactl", "get-sink-mute", "@DEFAULT_SINK@"],
+            capture_output=True, text=True, timeout=3
+        )
+        muted = "yes" in r.stdout.lower()
+    except Exception:
+        muted = False
+
+    return {"volume": vol, "muted": muted}
+
+
+def set_volume(vol: int):
+    try:
+        vol = max(0, min(100, int(vol)))
+        subprocess.run(
+            ["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{vol}%"],
+            capture_output=True, timeout=3
+        )
+    except Exception:
+        pass
+
+
+def toggle_mute() -> bool:
+    try:
+        subprocess.run(
+            ["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"],
+            capture_output=True, timeout=3
+        )
+        return get_volume()["muted"]
+    except Exception:
+        return False
+
+
 async def handle_client(websocket, input_dev: InputDevice):
     client_addr = websocket.remote_address
     print(f"  Client connected: {client_addr}")
@@ -407,6 +454,20 @@ async def handle_client(websocket, input_dev: InputDevice):
                         input_dev.key("KEY_LEFTSHIFT", "up")
                 elif msg_type == "text":
                     input_dev.type_text(data.get("text", ""))
+                elif msg_type == "vol_get":
+                    await websocket.send(json.dumps(
+                        {"type": "vol_state", **get_volume()}
+                    ))
+                elif msg_type == "vol_set":
+                    set_volume(data.get("volume", 50))
+                    await websocket.send(json.dumps(
+                        {"type": "vol_state", **get_volume()}
+                    ))
+                elif msg_type == "vol_mute":
+                    toggle_mute()
+                    await websocket.send(json.dumps(
+                        {"type": "vol_state", **get_volume()}
+                    ))
             except Exception as e:
                 print(f"  Error processing message: {e}")
     except websockets.exceptions.ConnectionClosed:

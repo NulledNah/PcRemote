@@ -18,6 +18,7 @@ class ConnectionService : Service() {
     var onConnected: (() -> Unit)? = null
     var onDisconnected: (() -> Unit)? = null
     var onError: ((String) -> Unit)? = null
+    var onMessage: ((String) -> Unit)? = null
 
     var isConnected: Boolean = false
         private set
@@ -48,6 +49,9 @@ class ConnectionService : Service() {
             isConnected = false
             hideNotification()
             onError?.invoke(msg)
+        }
+        webSocketManager.onMessage = { text ->
+            onMessage?.invoke(text)
         }
     }
 

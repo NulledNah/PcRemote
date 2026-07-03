@@ -68,6 +68,33 @@ fun RemoteScreen(
                         style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.togglePcMute() },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Text(
+                                if (viewModel.pcMuted) "\uD83D\uDD07" else "\uD83D\uDD0A",
+                                fontSize = 20.sp
+                            )
+                        }
+                        Text(
+                            "${viewModel.pcVolume}%",
+                            modifier = Modifier.width(40.dp),
+                            fontSize = 13.sp
+                        )
+                        Slider(
+                            value = viewModel.pcVolume.toFloat(),
+                            onValueChange = { viewModel.sendPcVolume(it.toInt()) },
+                            valueRange = 0f..100f,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
