@@ -121,9 +121,11 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
 
     fun sendPcVolume(vol: Int) {
         val clamped = vol.coerceIn(0, 100)
-        if (!pcMuted) {
-            preMuteVolume = clamped
+        if (pcMuted) {
+            pcMuted = false
+            service?.send(VolMute())
         }
+        preMuteVolume = clamped
         service?.send(VolSet(volume = clamped))
     }
 
