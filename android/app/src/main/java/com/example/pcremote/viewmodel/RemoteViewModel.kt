@@ -154,9 +154,11 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
         try {
             val json = JSONObject(text)
             if (json.optString("type") == "vol_state") {
-                val now = System.currentTimeMillis()
                 pcVolume = json.optInt("volume", pcVolume)
-                if (now - lastVolCmdTime < 500) {
+                val from = json.optString("from")
+                if (from == "vol_mute" || from == "vol_set" ||
+                    System.currentTimeMillis() - lastVolCmdTime > 500
+                ) {
                     pcMuted = json.optBoolean("muted", pcMuted)
                 }
             }

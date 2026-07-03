@@ -456,17 +456,17 @@ async def handle_client(websocket, input_dev: InputDevice):
                     input_dev.type_text(data.get("text", ""))
                 elif msg_type == "vol_get":
                     await websocket.send(json.dumps(
-                        {"type": "vol_state", **get_volume()}
+                        {"type": "vol_state", "from": "vol_get", **get_volume()}
                     ))
                 elif msg_type == "vol_set":
                     set_volume(data.get("volume", 50))
                     await websocket.send(json.dumps(
-                        {"type": "vol_state", **get_volume()}
+                        {"type": "vol_state", "from": "vol_set", **get_volume()}
                     ))
                 elif msg_type == "vol_mute":
                     toggle_mute()
                     await websocket.send(json.dumps(
-                        {"type": "vol_state", **get_volume()}
+                        {"type": "vol_state", "from": "vol_mute", **get_volume()}
                     ))
             except Exception as e:
                 print(f"  Error processing message: {e}")
