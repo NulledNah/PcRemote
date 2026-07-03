@@ -75,13 +75,13 @@ fun RemoteScreen(
                 )
             }
             Slider(
-                value = viewModel.pcVolume.toFloat(),
+                value = if (viewModel.pcMuted) 0f else viewModel.pcVolume.toFloat(),
                 onValueChange = { viewModel.sendPcVolume(it.toInt()) },
                 valueRange = 0f..100f,
                 modifier = Modifier.weight(1f)
             )
             Text(
-                "${viewModel.pcVolume}%",
+                if (viewModel.pcMuted) "0%" else "${viewModel.pcVolume}%",
                 fontSize = 13.sp,
                 modifier = Modifier.width(40.dp),
                 color = MaterialTheme.colorScheme.onSurface
@@ -182,25 +182,27 @@ fun RemoteScreen(
             modifier = Modifier.weight(1f)
         )
 
-        ExtraKeysBar(
-            onKeyDown = { code -> viewModel.sendKeyDown(code) },
-            onKeyUp = { code -> viewModel.sendKeyUp(code) }
-        )
+        Column(modifier = Modifier.imePadding()) {
+            ExtraKeysBar(
+                onKeyDown = { code -> viewModel.sendKeyDown(code) },
+                onKeyUp = { code -> viewModel.sendKeyUp(code) }
+            )
 
-        KeyboardInputArea(
-            onKeyEvent = { keyCode, isDown ->
-                viewModel.sendKeyEvent(keyCode, isDown)
-            },
-            onComboText = { text ->
-                viewModel.sendComboKeyTap(text)
-            },
-            onEnter = {
-                viewModel.sendKeyTap("KEY_ENTER")
-            },
-            onBackspace = {
-                viewModel.sendKeyTap("KEY_BACKSPACE")
-            },
-            useAutocorrect = viewModel.useAutocorrect
-        )
+            KeyboardInputArea(
+                onKeyEvent = { keyCode, isDown ->
+                    viewModel.sendKeyEvent(keyCode, isDown)
+                },
+                onComboText = { text ->
+                    viewModel.sendComboKeyTap(text)
+                },
+                onEnter = {
+                    viewModel.sendKeyTap("KEY_ENTER")
+                },
+                onBackspace = {
+                    viewModel.sendKeyTap("KEY_BACKSPACE")
+                },
+                useAutocorrect = viewModel.useAutocorrect
+            )
+        }
     }
 }
