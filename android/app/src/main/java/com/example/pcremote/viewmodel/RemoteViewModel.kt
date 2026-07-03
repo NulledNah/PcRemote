@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.content.SharedPreferences
 import android.os.IBinder
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -15,13 +16,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pcremote.ConnectionService
 import com.example.pcremote.network.*
-import com.google.gson.Gson
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 class RemoteViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val gson = Gson()
 
     private val prefs: SharedPreferences =
         application.getSharedPreferences("pc_remote_prefs", Context.MODE_PRIVATE)
@@ -139,12 +138,13 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun handleServerMessage(text: String) {
         try {
-            val state = gson.fromJson(text, VolState::class.java)
-            if (state.type == "vol_state") {
-                pcVolume = state.volume
-                pcMuted = state.muted
+            val json = JSONObject(text)
+            if (json.optString("type") == "vol_state") {
+                pcVolume = json.optInt("volume", pcVolume)
+                pcMuted = json.optBoolean("muted", pcMuted)
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e("PcRemote", "Failed to parse server msg: $text", e)
         }
     }
 
