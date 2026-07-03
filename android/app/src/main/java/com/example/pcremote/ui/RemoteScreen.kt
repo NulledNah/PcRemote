@@ -76,21 +76,25 @@ fun RemoteScreen(
             }
             val sliderValue = remember { mutableFloatStateOf(viewModel.pcVolume.toFloat()) }
             var isLocal by remember { mutableStateOf(false) }
+            var lastSent by remember { mutableLongStateOf(0L) }
             LaunchedEffect(viewModel.pcVolume, viewModel.pcMuted) {
                 if (!isLocal) {
                     sliderValue.floatValue = if (viewModel.pcMuted) 0f
                         else viewModel.pcVolume.toFloat()
                 }
             }
-            LaunchedEffect(sliderValue.floatValue) {
-                isLocal = true
-                kotlinx.coroutines.delay(80)
-                viewModel.sendPcVolume(sliderValue.floatValue.toInt())
-                isLocal = false
-            }
             Slider(
                 value = sliderValue.floatValue,
-                onValueChange = { sliderValue.floatValue = it },
+                onValueChange = {
+                    sliderValue.floatValue = it
+                    val now = System.currentTimeMillis()
+                    if (now - lastSent >= 50) {
+                        isLocal = true
+                        viewModel.sendPcVolume(it.toInt())
+                        lastSent = now
+                        isLocal = false
+                    }
+                },
                 valueRange = 0f..100f,
                 modifier = Modifier.weight(1f)
             )
