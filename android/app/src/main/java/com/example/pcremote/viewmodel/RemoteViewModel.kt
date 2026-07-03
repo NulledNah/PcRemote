@@ -136,7 +136,6 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     fun togglePcMute() {
         val wasMuted = pcMuted
         pcMuted = !wasMuted
-        Log.d("PcRemote", "toggleMute: $wasMuted -> ${!wasMuted} (optimistic)")
         service?.send(VolMute())
         if (wasMuted) {
             sendPcVolume(preMuteVolume.coerceAtLeast(1))
@@ -161,7 +160,6 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
             if (typeStr == "vs") {
                 pcVolume = json.optInt("v", pcVolume)
                 pcMuted = json.optBoolean("m", pcMuted)
-                Log.d("PcRemote", "vol_state: vol=$pcVolume muted=$pcMuted from=${json.optString("f")}")
             }
         } catch (e: Exception) {
             Log.e("PcRemote", "Failed to parse: $text", e)
@@ -202,7 +200,6 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun sendKeyDown(code: String) {
-        Log.d("PcRemote", "key: $code")
         service?.send(KeyAction("kd", code))
     }
 
@@ -223,7 +220,6 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun sendComboKeyTap(charSequence: CharSequence) {
-        Log.d("PcRemote", "sendText: ${charSequence}")
         service?.send(TextMessage("tx", charSequence.toString()))
     }
 

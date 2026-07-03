@@ -8,7 +8,6 @@ import android.app.Service
 import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
-import android.util.Log
 import com.example.pcremote.network.WebSocketManager
 
 class ConnectionService : Service() {
@@ -52,13 +51,11 @@ class ConnectionService : Service() {
             onError?.invoke(msg)
         }
         webSocketManager.onMessage = { text ->
-            Log.d("PcRemote", "wsMsg: $text")
             onMessage?.invoke(text)
         }
     }
 
     fun connect(host: String, port: Int) {
-        Log.d("PcRemote", "service.connect($host:$port)")
         currentHost = host
         currentPort = port
         webSocketManager.connect(host, port)
@@ -73,7 +70,6 @@ class ConnectionService : Service() {
 
     fun send(message: Any) {
         if (isConnected) {
-            Log.d("PcRemote", "send: ${message.javaClass.simpleName}")
             webSocketManager.send(message)
         }
     }
