@@ -124,13 +124,14 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun togglePcMute() {
+        pcMuted = !pcMuted
         service?.send(VolMute())
     }
 
     private fun startVolumePolling() {
         viewModelScope.launch {
             while (isConnected) {
-                delay(3000)
+                delay(1000)
                 if (isConnected) fetchVolume()
             }
         }

@@ -2,6 +2,9 @@ package com.example.pcremote.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -64,9 +67,11 @@ fun RemoteScreen(
                 onClick = { viewModel.togglePcMute() },
                 modifier = Modifier.size(32.dp)
             ) {
-                Text(
-                    if (viewModel.pcMuted) "\uD83D\uDD07" else "\uD83D\uDD0A",
-                    fontSize = 16.sp
+                Icon(
+                    if (viewModel.pcMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp,
+                    contentDescription = if (viewModel.pcMuted) "Unmute" else "Mute",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(20.dp)
                 )
             }
             Slider(
