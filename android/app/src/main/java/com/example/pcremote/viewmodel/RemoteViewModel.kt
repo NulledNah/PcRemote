@@ -41,7 +41,6 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     var isDarkMode by mutableStateOf(false)
     var pcVolume by mutableIntStateOf(50)
     var pcMuted by mutableStateOf(false)
-    private var lastVolCmdTime = 0L
     private var preMuteVolume = 0
 
     init {
@@ -125,14 +124,13 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
         if (!pcMuted) {
             preMuteVolume = clamped
         }
-        lastVolCmdTime = System.currentTimeMillis()
         service?.send(VolSet(volume = clamped))
     }
 
     fun togglePcMute() {
         val wasMuted = pcMuted
         pcMuted = !wasMuted
-        lastVolCmdTime = System.currentTimeMillis()
+        Log.d("PcRemote", "toggleMute: $wasMuted -> ${!wasMuted} (optimistic)")
         service?.send(VolMute())
         if (wasMuted) {
             sendPcVolume(preMuteVolume.coerceAtLeast(1))
@@ -154,16 +152,14 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
         try {
             val json = JSONObject(text)
             if (json.optString("type") == "vol_state") {
-                pcVolume = json.optInt("volume", pcVolume)
-                val from = json.optString("from")
-                if (from == "vol_mute" || from == "vol_set" ||
-                    System.currentTimeMillis() - lastVolCmdTime > 500
-                ) {
-                    pcMuted = json.optBoolean("muted", pcMuted)
-                }
+                val newVol = json.optInt("volume", pcVolume)
+                val newMuted = json.optBoolean("muted", pcMuted)
+                Log.d("PcRemote", "vol_state: vol=$newVol muted=$newMuted from=${json.optString("from")}")
+                pcVolume = newVol
+                pcMuted = newMuted
             }
         } catch (e: Exception) {
-            Log.e("PcRemote", "Failed to parse server msg: $text", e)
+            Log.e("PcRemote", "Failed to parse: $text", e)
         }
     }
 
