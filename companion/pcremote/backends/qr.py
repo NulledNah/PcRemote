@@ -7,6 +7,32 @@ from typing import Optional
 from .base import QrBackend
 
 
+def _find_icon_path():
+    candidates = []
+    try:
+        import sys as _sys
+        base = getattr(_sys, '_MEIPASS', '')
+        if base:
+            candidates.append(os.path.join(base, 'icon.ico'))
+    except Exception:
+        pass
+    candidates.append(os.path.join(os.path.dirname(__file__), '..', '..', 'icon.ico'))
+    candidates.append(os.path.join(os.path.dirname(__file__), '..', 'icon.ico'))
+    for p in candidates:
+        if os.path.isfile(p):
+            return p
+    return None
+
+
+def _set_window_icon(root):
+    icon_path = _find_icon_path()
+    if icon_path:
+        try:
+            root.iconbitmap(icon_path)
+        except Exception:
+            pass
+
+
 class QrBackends:
     @staticmethod
     def create() -> QrBackend:
@@ -97,6 +123,8 @@ class PythonQrcodeBackend(QrBackend):
             root.title("PcRemote - Scan to Connect")
             root.configure(bg='white')
             root.resizable(False, False)
+
+            _set_window_icon(root)
 
             photo = ImageTk.PhotoImage(img)
             label = tk.Label(root, image=photo, bg='white')
