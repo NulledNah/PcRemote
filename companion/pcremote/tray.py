@@ -61,16 +61,17 @@ class DashboardWindow:
         import qrcode
         from PIL import Image, ImageTk
 
-        BG = '#ffffff'
-        FG = '#1a73e8'
-        FG_DARK = '#1557b0'
-        LOG_BG = '#0f172a'
-        LOG_FG = '#e2e8f0'
+        BG = '#EBE0D3'
+        ACCENT = '#7F5A49'
+        ACCENT_DARK = '#6B493A'
+        CREAM = '#FDF0D9'
+        LOG_BG = '#3B2A22'
+        LOG_FG = '#EBE0D3'
 
         self._root = tk.Tk()
         self._root.title("PcRemote Dashboard")
         self._root.configure(bg=BG)
-        self._root.resizable(False, False)
+        self._root.resizable(True, True)
         self._root.withdraw()
 
         icon_path = _find_icon_path()
@@ -91,19 +92,19 @@ class DashboardWindow:
         qr = qrcode.QRCode(box_size=6, border=3)
         qr.add_data(self._url)
         qr.make(fit=True)
-        img = qr.make_image(fill_color=FG_DARK, back_color=BG)
+        img = qr.make_image(fill_color=ACCENT_DARK, back_color=CREAM)
         img = img.resize((220, 220), Image.NEAREST)
         photo = ImageTk.PhotoImage(img)
 
-        qr_label = tk.Label(left_frame, image=photo, bg=BG)
+        qr_label = tk.Label(left_frame, image=photo, bg=CREAM)
         qr_label.image = photo
         qr_label.pack()
 
         url_label = tk.Label(
-            left_frame, text=self._url, bg=BG, fg='#666',
-            font=("Consolas", 8)
+            left_frame, text=self._url, bg=BG, fg=ACCENT_DARK,
+            font=("Consolas", 10)
         )
-        url_label.pack(pady=(5, 0))
+        url_label.pack(pady=(8, 0))
 
         self._log_frame = tk.Frame(main_frame, bg=BG)
         scrollbar = tk.Scrollbar(self._log_frame)
@@ -126,7 +127,7 @@ class DashboardWindow:
         bottom_frame.pack(fill=tk.X, padx=15, pady=(0, 10))
 
         switch_canvas = tk.Canvas(
-            bottom_frame, width=44, height=24,
+            bottom_frame, width=56, height=30,
             bg=BG, highlightthickness=0
         )
         switch_canvas.pack(side=tk.LEFT)
@@ -134,17 +135,17 @@ class DashboardWindow:
         def _draw_switch(on=False):
             switch_canvas.delete("all")
             if on:
-                _rounded_rect(switch_canvas, 0, 0, 44, 24, 12, fill=FG)
-                switch_canvas.create_oval(22, 2, 42, 22, fill='white', outline='')
+                _rounded_rect(switch_canvas, 0, 0, 56, 30, 15, fill=ACCENT, outline='')
+                switch_canvas.create_oval(28, 3, 54, 27, fill=CREAM, outline='')
             else:
-                _rounded_rect(switch_canvas, 0, 0, 44, 24, 12, fill='#ccc')
-                switch_canvas.create_oval(2, 2, 22, 22, fill='white', outline='')
+                _rounded_rect(switch_canvas, 0, 0, 56, 30, 15, fill='#C4B5A8', outline='')
+                switch_canvas.create_oval(2, 3, 28, 27, fill=CREAM, outline='')
 
         _draw_switch(False)
 
         switch_label = tk.Label(
-            bottom_frame, text="  Show Logs", bg=BG, fg='#333',
-            font=("Segoe UI", 9)
+            bottom_frame, text="  Show Logs", bg=BG, fg=ACCENT_DARK,
+            font=("Segoe UI", 10)
         )
         switch_label.pack(side=tk.LEFT)
 
