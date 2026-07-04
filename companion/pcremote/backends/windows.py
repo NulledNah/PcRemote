@@ -157,7 +157,7 @@ class WindowsSendInputBackend(InputBackend):
         self.modifiers_pressed = set()
         self._dx = 0.0
         self._dy = 0.0
-        self._last_flush = 0.0
+        self._last_flush = time.monotonic()
         self._ticker_task = None
         self._debug_samples = []
         self._debug_total = 0
