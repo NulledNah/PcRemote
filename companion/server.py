@@ -250,8 +250,6 @@ class ServerInstance:
         self.logger.info("  OS: %s", "Windows" if os.name == 'nt' else "Linux")
         self.logger.info("=" * 50)
 
-        self.qr_backend.display(token_url)
-
         if self.input_dev and hasattr(self.input_dev, 'start_ticker'):
             self.input_dev.start_ticker(asyncio.get_running_loop())
 
@@ -328,6 +326,14 @@ class AppController:
         self._destroy_backends()
         self.logger.info("Server stopped.")
 
+    def show_qr(self):
+        url = f"ws://{self.ip}:{self.args.port}"
+        if self.require_auth:
+            url = f"ws://{self.ip}:{self.args.port}?token={self.auth_token}"
+        if self.qr_backend is None:
+            self.qr_backend = QrBackends.create()
+        self.qr_backend.display(url)
+
     def run(self):
         if os.name == 'nt' and not self.args.console:
             self._run_tray_mode()
@@ -388,9 +394,13 @@ class AppController:
             loop_thread.join(timeout=2)
             sys.exit(0)
 
+        def on_show_qr():
+            self.show_qr()
+
         try:
             run_tray(on_stop, on_start, on_quit,
-                     on_show_console=show_console, on_init=on_init)
+                     on_show_console=show_console, on_init=on_init,
+                     on_show_qr=on_show_qr)
         except KeyboardInterrupt:
             self.logger.info("Shutting down...")
         finally:

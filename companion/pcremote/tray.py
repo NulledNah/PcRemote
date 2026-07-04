@@ -115,7 +115,7 @@ def _load_image():
 
 
 def run_tray(on_stop_server, on_start_server, on_quit,
-             on_show_console=None, on_init=None):
+             on_show_console=None, on_init=None, on_show_qr=None):
     if os.name != 'nt':
         return False
 
@@ -127,26 +127,30 @@ def run_tray(on_stop_server, on_start_server, on_quit,
     image = _load_image()
     state = {"running": True, "console_shown": False}
     on_show_console = on_show_console or (lambda: None)
+    on_show_qr = on_show_qr or (lambda: None)
+
+    def do_qr(icon, item):
+        on_show_qr()
 
     def do_console(icon, item):
         if not state["console_shown"]:
             state["console_shown"] = True
             on_show_console()
-            icon.menu = _build_menu(state, do_console, do_stop, do_start, do_quit)
+            icon.menu = _build_menu(state, do_qr, do_console, do_stop, do_start, do_quit)
             icon.update_menu()
 
     def do_stop(icon, item):
         if state["running"]:
             on_stop_server()
             state["running"] = False
-            icon.menu = _build_menu(state, do_console, do_stop, do_start, do_quit)
+            icon.menu = _build_menu(state, do_qr, do_console, do_stop, do_start, do_quit)
             icon.update_menu()
 
     def do_start(icon, item):
         if not state["running"]:
             on_start_server()
             state["running"] = True
-            icon.menu = _build_menu(state, do_console, do_stop, do_start, do_quit)
+            icon.menu = _build_menu(state, do_qr, do_console, do_stop, do_start, do_quit)
             icon.update_menu()
 
     def do_quit(icon, item):
@@ -164,15 +168,16 @@ def run_tray(on_stop_server, on_start_server, on_quit,
         if on_init:
             on_init()
 
-    menu = _build_menu(state, do_console, do_stop, do_start, do_quit)
+    menu = _build_menu(state, do_qr, do_console, do_stop, do_start, do_quit)
     icon = TrayIcon("PcRemote", image, menu=menu)
     icon.run(setup)
     return True
 
 
-def _build_menu(state, do_console, do_stop, do_start, do_quit):
+def _build_menu(state, do_qr, do_console, do_stop, do_start, do_quit):
     from pystray import Menu, MenuItem
     items = []
+    items.append(MenuItem("Show QR Code", do_qr))
     if state["console_shown"]:
         items.append(MenuItem("Console (visible)", None, enabled=False))
     else:
