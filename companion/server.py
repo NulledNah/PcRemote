@@ -72,6 +72,7 @@ async def handle_client(
     input_dev: Optional[InputBackend],
     volume_dev: VolumeBackend,
     auth_token: str,
+    require_auth: bool,
     connected_clients: dict,
     logger,
 ):
@@ -80,7 +81,7 @@ async def handle_client(
     client_id = f"{client_addr[0]}:{client_addr[1]}"
     connected_clients[client_id] = time.time()
 
-    authenticated = False
+    authenticated = not require_auth
 
     try:
         async for raw_message in websocket:
@@ -89,7 +90,7 @@ async def handle_client(
                     try:
                         dx = int.from_bytes(raw_message[1:5], 'big', signed=True)
                         dy = int.from_bytes(raw_message[5:9], 'big', signed=True)
-                        if input_dev:
+                        if input_dev and authenticated:
                             input_dev.mouse_move(dx, dy)
                     except Exception:
                         pass
@@ -105,7 +106,7 @@ async def handle_client(
 
             msg_type = data.get("t", "")
 
-            if msg_type == MSG_AUTH:
+            if msg_type == MSG_AUTH and require_auth:
                 client_token = data.get("tk", "")
                 if client_token == auth_token:
                     authenticated = True
@@ -217,18 +218,23 @@ async def run_server(
     input_dev: Optional[InputBackend],
     volume_dev: VolumeBackend,
     auth_token: str,
+    require_auth: bool,
     qr_backend,
     local_ip: str,
     logger,
 ):
     url = f"ws://{local_ip}:{port}"
-    token_url = f"ws://{local_ip}:{port}?token={auth_token}"
+    if require_auth:
+        token_url = f"ws://{local_ip}:{port}?token={auth_token}"
+    else:
+        token_url = url
 
     logger.info("=" * 50)
     logger.info("  PcRemote Server v%s", VERSION)
     logger.info("=" * 50)
     logger.info("  Listening on: %s", url)
-    logger.info("  Auth token: %s", auth_token)
+    if require_auth:
+        logger.info("  Auth token: %s", auth_token)
     logger.info("  Protocol version: %d", PROTOCOL_VERSION)
     logger.info("  OS: %s", "Windows" if os.name == 'nt' else "Linux")
     logger.info("=" * 50)
@@ -240,7 +246,7 @@ async def run_server(
     asyncio.create_task(cleanup_stale_clients(connected_clients))
 
     async def handler(ws):
-        await handle_client(ws, input_dev, volume_dev, auth_token, connected_clients, logger)
+        await handle_client(ws, input_dev, volume_dev, auth_token, require_auth, connected_clients, logger)
 
     stop = asyncio.Future()
 
@@ -262,7 +268,7 @@ def main():
     parser = argparse.ArgumentParser(description="PC Remote companion server")
     parser.add_argument("--port", type=int, default=8765, help="WebSocket port (default: 8765)")
     parser.add_argument("--password", type=str, default=None,
-                        help="Authentication token (auto-generated if not provided)")
+                        help="Require authentication token for connections")
     parser.add_argument("--no-input", action="store_true",
                         help="Run without input simulation (testing mode)")
     parser.add_argument("--no-diagnostics", action="store_true",
@@ -292,6 +298,7 @@ def main():
     ip = get_local_ip()
 
     config = load_config()
+    require_auth = args.password is not None
     auth_token = args.password or get_or_create_token(config)
 
     if args.no_input:
@@ -318,7 +325,7 @@ def main():
     try:
         asyncio.run(run_server(
             args.port, input_dev, volume_dev, auth_token,
-            qr_backend, ip, logger,
+            require_auth, qr_backend, ip, logger,
         ))
     except KeyboardInterrupt:
         logger.info("Shutting down...")
