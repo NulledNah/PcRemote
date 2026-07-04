@@ -1,6 +1,7 @@
 import os
 import subprocess
 import tempfile
+import threading
 from typing import Optional
 
 from .base import QrBackend
@@ -16,12 +17,20 @@ class QrBackends:
 
 
 class PythonQrcodeBackend(QrBackend):
+    def __init__(self):
+        self._qr_window = None
+        self._qr_close_flag = None
+
     def available(self) -> bool:
         try:
             import qrcode  # noqa: F401
             return True
         except ImportError:
             return False
+
+    def close_qr(self):
+        if self._qr_close_flag:
+            self._qr_close_flag.set()
 
     def generate(self, data: str) -> Optional[str]:
         try:
@@ -51,7 +60,10 @@ class PythonQrcodeBackend(QrBackend):
             return None
 
     def display(self, data: str) -> bool:
-        if self._display_image(data):
+        self.close_qr()
+        if os.name == 'nt' and self._display_tkinter(data):
+            return True
+        if self._display_file(data):
             return True
         result = self.generate(data)
         if result:
@@ -61,7 +73,68 @@ class PythonQrcodeBackend(QrBackend):
             return True
         return False
 
-    def _display_image(self, data: str) -> bool:
+    def _display_tkinter(self, data: str) -> bool:
+        try:
+            import tkinter as tk
+            import qrcode
+            from PIL import Image, ImageTk
+        except ImportError:
+            return False
+
+        try:
+            qr = qrcode.QRCode(box_size=8, border=4)
+            qr.add_data(data)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            img = img.resize((320, 320), Image.NEAREST)
+        except Exception:
+            return False
+
+        self._qr_close_flag = threading.Event()
+
+        def _run():
+            root = tk.Tk()
+            root.title("PcRemote - Scan to Connect")
+            root.configure(bg='white')
+            root.resizable(False, False)
+
+            photo = ImageTk.PhotoImage(img)
+            label = tk.Label(root, image=photo, bg='white')
+            label.image = photo
+            label.pack(padx=20, pady=(20, 5))
+
+            url_label = tk.Label(
+                root, text=data, bg='white', fg='#555',
+                font=("Consolas", 9),
+            )
+            url_label.pack(pady=(0, 20))
+
+            root.update_idletasks()
+            ws = root.winfo_screenwidth()
+            hs = root.winfo_screenheight()
+            w = root.winfo_width()
+            h = root.winfo_height()
+            root.geometry(f"+{ws//2 - w//2}+{hs//2 - h//2}")
+            root.lift()
+            root.attributes('-topmost', True)
+            root.after(200, lambda: root.attributes('-topmost', False))
+
+            def _check_close():
+                if self._qr_close_flag.is_set():
+                    root.destroy()
+                    self._qr_window = None
+                    return
+                self._qr_window = root
+                root.after(200, _check_close)
+
+            root.after(200, _check_close)
+            root.mainloop()
+            self._qr_window = None
+
+        threading.Thread(target=_run, daemon=True).start()
+        return True
+
+    def _display_file(self, data: str) -> bool:
         path = None
         try:
             import qrcode
@@ -101,6 +174,9 @@ class PythonQrcodeBackend(QrBackend):
 class FallbackQrBackend(QrBackend):
     def generate(self, data: str) -> Optional[str]:
         return None
+
+    def close_qr(self):
+        pass
 
     def display(self, data: str):
         print()

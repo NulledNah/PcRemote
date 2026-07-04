@@ -95,9 +95,12 @@ async def handle_client(
     require_auth: bool,
     connected_clients: dict,
     logger,
+    on_connect=None,
 ):
     client_addr = websocket.remote_address
     logger.info("Client connected: %s", client_addr)
+    if on_connect:
+        on_connect()
     client_id = f"{client_addr[0]}:{client_addr[1]}"
     connected_clients[client_id] = time.time()
     authenticated = not require_auth
@@ -222,7 +225,7 @@ async def cleanup_stale_clients(connected_clients: dict, timeout: float = 30.0):
 
 class ServerInstance:
     def __init__(self, port, input_dev, volume_dev, auth_token, require_auth,
-                 qr_backend, local_ip, logger):
+                 qr_backend, local_ip, logger, on_connect=None):
         self.port = port
         self.input_dev = input_dev
         self.volume_dev = volume_dev
@@ -231,6 +234,7 @@ class ServerInstance:
         self.qr_backend = qr_backend
         self.local_ip = local_ip
         self.logger = logger
+        self.on_connect = on_connect
         self._task = None
         self._stop_event = None
 
@@ -259,7 +263,8 @@ class ServerInstance:
         async def handler(ws):
             await handle_client(ws, self.input_dev, self.volume_dev,
                                 self.auth_token, self.require_auth,
-                                connected_clients, self.logger)
+                                connected_clients, self.logger,
+                                on_connect=self.on_connect)
 
         self._stop_event = asyncio.Event()
         async with serve(handler, "0.0.0.0", self.port, ping_interval=20, ping_timeout=10):
@@ -314,6 +319,7 @@ class AppController:
             self.args.port, self.input_dev, self.volume_dev,
             self.auth_token, self.require_auth,
             self.qr_backend, self.ip, self.logger,
+            on_connect=lambda: self.qr_backend.close_qr(),
         )
         self.server.start(self._loop)
         self.logger.info("Server started on %s:%d", self.ip, self.args.port)
