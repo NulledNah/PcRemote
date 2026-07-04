@@ -150,37 +150,66 @@ def needs_shift(name: str) -> bool:
 
 
 class WindowsSendInputBackend(InputBackend):
+    MIN_FLUSH_INTERVAL = 0.002
+    SAFETY_TICK_MS = 8
+
     def __init__(self):
         self.modifiers_pressed = set()
         self._dx = 0.0
         self._dy = 0.0
+        self._last_flush = 0.0
         self._ticker_task = None
+        self._debug_samples = []
+        self._debug_total = 0
+        self._debug_count = 0
+        self._debug_max = 0.0
 
-    def start_ticker(self, loop, rate_hz: int = 120):
-        self._ticker_task = loop.create_task(self._run_ticker(rate_hz))
+    def start_ticker(self, loop):
+        self._ticker_task = loop.create_task(self._safety_ticker())
 
     def stop_ticker(self):
         if self._ticker_task:
             self._ticker_task.cancel()
             self._ticker_task = None
 
-    async def _run_ticker(self, rate_hz: int):
+    async def _safety_ticker(self):
         import asyncio
-        interval = 1.0 / rate_hz
         while True:
-            await asyncio.sleep(interval)
+            await asyncio.sleep(self.SAFETY_TICK_MS / 1000.0)
             if self._dx == 0.0 and self._dy == 0.0:
                 continue
-            dx, self._dx = self._dx, 0.0
-            dy, self._dy = self._dy, 0.0
-            idx = int(dx)
-            idy = int(dy)
-            fx = dx - idx
-            fy = dy - idy
-            self._dx += fx
-            self._dy += fy
-            if idx != 0 or idy != 0:
-                _send_mouse(MOUSEEVENTF_MOVE, idx, idy)
+            now = time.monotonic()
+            if now - self._last_flush >= self.MIN_FLUSH_INTERVAL:
+                self._flush(now)
+
+    def _flush(self, now: float = 0.0):
+        if now == 0.0:
+            now = time.monotonic()
+        elapsed = now - self._last_flush
+        self._last_flush = now
+
+        dx, self._dx = self._dx, 0.0
+        dy, self._dy = self._dy, 0.0
+        idx = int(dx)
+        idy = int(dy)
+        self._dx += dx - idx
+        self._dy += dy - idy
+        if idx != 0 or idy != 0:
+            _send_mouse(MOUSEEVENTF_MOVE, idx, idy)
+
+        self._debug_total += elapsed
+        self._debug_count += 1
+        if elapsed > self._debug_max:
+            self._debug_max = elapsed
+        if self._debug_count % 120 == 0:
+            import logging
+            logging.getLogger("pcremote").debug(
+                "mouse flush interval: avg=%.1fms min=%.1fms max=%.1fms count=%d",
+                (self._debug_total / self._debug_count) * 1000,
+                self.MIN_FLUSH_INTERVAL * 1000,
+                self._debug_max * 1000,
+                self._debug_count,
+            )
 
     def close(self):
         self.stop_ticker()
@@ -190,6 +219,9 @@ class WindowsSendInputBackend(InputBackend):
     def mouse_move(self, dx: float, dy: float):
         self._dx += dx
         self._dy += dy
+        now = time.monotonic()
+        if now - self._last_flush >= self.MIN_FLUSH_INTERVAL:
+            self._flush(now)
 
     def mouse_button(self, button: str, action: str):
         flag = MOUSE_BUTTONS.get((button, action))

@@ -67,6 +67,25 @@ def get_key_resolver():
         return rk, ns
 
 
+_profile_stats: dict = {}
+
+
+def _profile_msg(msg_type: str, start_time: float, logger):
+    elapsed = (time.monotonic() - start_time) * 1000
+    if msg_type not in _profile_stats:
+        _profile_stats[msg_type] = {"total": 0.0, "count": 0, "max": 0.0}
+    s = _profile_stats[msg_type]
+    s["total"] += elapsed
+    s["count"] += 1
+    if elapsed > s["max"]:
+        s["max"] = elapsed
+    if s["count"] % 500 == 0:
+        logger.debug(
+            "msg=%s avg=%.2fms max=%.2fms count=%d",
+            msg_type, s["total"] / s["count"], s["max"], s["count"],
+        )
+
+
 async def handle_client(
     websocket,
     input_dev: Optional[InputBackend],
@@ -128,6 +147,7 @@ async def handle_client(
                 continue
 
             connected_clients[client_id] = time.time()
+            msg_start = time.monotonic()
 
             if input_dev is None and msg_type not in (MSG_VOLUME_GET, MSG_VOLUME_SET, MSG_VOLUME_MUTE, MSG_PING):
                 continue
@@ -135,6 +155,7 @@ async def handle_client(
             try:
                 if msg_type == MSG_MOUSE_MOVE:
                     input_dev.mouse_move(data.get("x", 0), data.get("y", 0))
+                    _profile_msg("m", msg_start, logger)
 
                 elif msg_type == MSG_MOUSE_DOWN:
                     input_dev.mouse_button(data.get("b", "left"), "down")
