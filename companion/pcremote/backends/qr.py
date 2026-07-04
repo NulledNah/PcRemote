@@ -1,6 +1,5 @@
 import os
 import subprocess
-import tempfile
 from typing import Optional
 
 from .base import QrBackend
@@ -41,16 +40,18 @@ class PythonQrcodeBackend(QrBackend):
             return None
 
     def display(self, data: str) -> bool:
+        if os.name == 'nt':
+            if self._display_gui(data):
+                return True
         result = self.generate(data)
         if result:
             print()
             print(result)
             print()
             return True
-
-        if os.name == 'nt':
-            return self._display_gui(data)
-        return self._try_qrencode_fallback(data)
+        if os.name != 'nt':
+            return self._try_qrencode_fallback(data)
+        return False
 
     def _display_gui(self, data: str) -> bool:
         try:
@@ -70,13 +71,7 @@ class PythonQrcodeBackend(QrBackend):
             qr.make(fit=True)
             img = qr.make_image(fill_color="black", back_color="white")
             img = img.resize((300, 300))
-
-            import io
             from PIL import ImageTk
-
-            buf = io.BytesIO()
-            img.save(buf, format='PNG')
-
             photo = ImageTk.PhotoImage(img)
             label = tk.Label(root, image=photo, bg='white')
             label.image = photo
