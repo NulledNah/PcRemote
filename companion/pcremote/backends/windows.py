@@ -235,20 +235,42 @@ class WindowsSendInputBackend(InputBackend):
 
 class WindowsVolumeBackend(VolumeBackend):
     def __init__(self):
-        self._vol = 50
-        self._muted = False
+        self._endpoint = None
+        try:
+            import ctypes as _ct
+            from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+            CLSCTX_ALL = 0x17
+            devices = AudioUtilities.GetSpeakers()
+            interface = devices.Activate(
+                IAudioEndpointVolume._iid_, CLSCTX_ALL, None
+            )
+            self._endpoint = _ct.cast(interface, _ct.POINTER(IAudioEndpointVolume))
+        except Exception:
+            self._endpoint = None
 
     @property
     def supports_precise_volume(self) -> bool:
-        return False
+        return self._endpoint is not None
 
     def get_volume(self) -> dict:
-        return {"volume": self._vol, "muted": self._muted}
+        if self._endpoint is not None:
+            try:
+                vol = self._endpoint.GetMasterVolumeLevelScalar()
+                muted = self._endpoint.GetMute()
+                return {"volume": int(vol * 100), "muted": bool(muted)}
+            except Exception:
+                pass
+        return {"volume": 50, "muted": False}
 
     def set_volume(self, vol: int):
         vol = max(0, min(100, int(vol)))
-        diff = vol - self._vol
-        self._vol = vol
+        if self._endpoint is not None:
+            try:
+                self._endpoint.SetMasterVolumeLevelScalar(vol / 100.0, None)
+                return
+            except Exception:
+                pass
+        diff = vol - self.get_volume()["volume"]
         vk = VK_VOLUME_UP if diff > 0 else VK_VOLUME_DOWN
         steps = min(abs(diff) // 2, 50)
         for _ in range(steps):
@@ -257,7 +279,13 @@ class WindowsVolumeBackend(VolumeBackend):
             time.sleep(0.01)
 
     def toggle_mute(self) -> bool:
+        if self._endpoint is not None:
+            try:
+                current = self._endpoint.GetMute()
+                self._endpoint.SetMute(not current, None)
+                return not current
+            except Exception:
+                pass
         _send_key(VK_VOLUME_MUTE)
         _send_key(VK_VOLUME_MUTE, KEYEVENTF_KEYUP)
-        self._muted = not self._muted
-        return self._muted
+        return not self.get_volume()["muted"]

@@ -77,8 +77,22 @@ def _check_windows(results: dict, port: int, logger):
 
     results["input_backend"] = True
     logger.info("  [OK] Windows SendInput backend available")
-    results["volume_backend"] = "media_keys"
-    logger.info("  [OK] Volume control via media keys")
+
+    try:
+        from pycaw.pycaw import AudioUtilities
+        devices = AudioUtilities.GetSpeakers()
+        if devices is not None:
+            results["volume_backend"] = "core_audio"
+            logger.info("  [OK] Volume control via Windows Core Audio API")
+        else:
+            results["volume_backend"] = "media_keys"
+            logger.info("  [OK] Volume control via media keys (no audio device)")
+    except ImportError:
+        results["volume_backend"] = "media_keys"
+        logger.info("  [OK] Volume control via media keys (pycaw not installed)")
+    except Exception:
+        results["volume_backend"] = "media_keys"
+        logger.info("  [OK] Volume control via media keys (audio init failed)")
 
     if not _firewall_port_open(port):
         logger.warning("  [WARN] Windows Firewall may block port %d", port)
