@@ -1,7 +1,6 @@
 import ctypes
 from ctypes import wintypes
 import time
-import threading
 from typing import Optional
 
 from .base import InputBackend, VolumeBackend
@@ -25,12 +24,21 @@ MOUSEEVENTF_MIDDLEDOWN = 0x0020
 MOUSEEVENTF_MIDDLEUP = 0x0040
 MOUSEEVENTF_WHEEL = 0x0800
 MOUSEEVENTF_HWHEEL = 0x01000
+MOUSEEVENTF_ABSOLUTE = 0x8000
 
 WHEEL_DELTA = 120
 
 VK_VOLUME_MUTE = 0xAD
 VK_VOLUME_DOWN = 0xAE
 VK_VOLUME_UP = 0xAF
+
+SPI_GETMOUSE = 0x0003
+SPI_SETMOUSE = 0x0004
+SPIF_UPDATEINIFILE = 0x01
+SPIF_SENDCHANGE = 0x02
+
+BATCH_INTERVAL = 0.002
+BATCH_MAX_SIZE = 64
 
 
 class MOUSEINPUT(ctypes.Structure):
@@ -77,9 +85,9 @@ MapVirtualKeyW = user32.MapVirtualKeyW
 MapVirtualKeyW.argtypes = [wintypes.UINT, wintypes.UINT]
 MapVirtualKeyW.restype = wintypes.UINT
 
-GetAsyncKeyState = user32.GetAsyncKeyState
-GetAsyncKeyState.argtypes = [ctypes.c_int]
-GetAsyncKeyState.restype = wintypes.SHORT
+SystemParametersInfoW = user32.SystemParametersInfoW
+SystemParametersInfoW.argtypes = [wintypes.UINT, wintypes.UINT, ctypes.c_void_p, wintypes.UINT]
+SystemParametersInfoW.restype = wintypes.BOOL
 
 VK_MAP = {
     'KEY_LEFTCTRL': 0x11, 'KEY_RIGHTCTRL': 0x11,
@@ -120,29 +128,6 @@ SHIFT_REQUIRED = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
                   'Y', 'Z'}
 
 
-def _send_key_input(vk: int, flags: int = 0, scan: int = 0):
-    inp = INPUT()
-    inp.type = INPUT_KEYBOARD
-    inp.ki.wVk = vk
-    inp.ki.wScan = scan
-    inp.ki.dwFlags = flags
-    inp.ki.time = 0
-    inp.ki.dwExtraInfo = None
-    SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
-
-
-def _send_mouse_input(flags: int, dx: int = 0, dy: int = 0, data: int = 0):
-    inp = INPUT()
-    inp.type = INPUT_MOUSE
-    inp.mi.dx = dx
-    inp.mi.dy = dy
-    inp.mi.mouseData = data
-    inp.mi.dwFlags = flags
-    inp.mi.time = 0
-    inp.mi.dwExtraInfo = None
-    SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
-
-
 def resolve_key(name: str) -> Optional[int]:
     return VK_MAP.get(name)
 
@@ -152,29 +137,99 @@ def needs_shift(name: str) -> bool:
 
 
 class WindowsSendInputBackend(InputBackend):
-    def __init__(self):
+    def __init__(self, disable_accel: bool = True):
         self.modifiers_pressed = set()
-        self._lock = threading.Lock()
+        self._batch = []
+        self._last_flush = time.monotonic()
+        self._prev_mouse_accel = None
+        if disable_accel:
+            self._disable_mouse_accel()
 
     def close(self):
+        self._flush_batch()
+        self._restore_mouse_accel()
         for mod in list(self.modifiers_pressed):
             self.key(mod, "up")
+
+    def _disable_mouse_accel(self):
+        try:
+            accel = ctypes.c_int(0)
+            params = (ctypes.c_int * 3)()
+            if SystemParametersInfoW(SPI_GETMOUSE, 0, params, 0):
+                self._prev_mouse_accel = tuple(params)
+            if SystemParametersInfoW(SPI_SETMOUSE, 0, params, SPIF_SENDCHANGE):
+                params[2] = 0
+                SystemParametersInfoW(SPI_SETMOUSE, 0, params, SPIF_SENDCHANGE)
+        except Exception:
+            pass
+
+    def _restore_mouse_accel(self):
+        if self._prev_mouse_accel is None:
+            return
+        try:
+            params = (ctypes.c_int * 3)(*self._prev_mouse_accel)
+            SystemParametersInfoW(SPI_SETMOUSE, 0, params, SPIF_SENDCHANGE)
+        except Exception:
+            pass
+
+    def _flush_batch(self):
+        if not self._batch:
+            return
+        n = len(self._batch)
+        arr = (INPUT * n)(*self._batch)
+        SendInput(n, ctypes.byref(arr), ctypes.sizeof(INPUT))
+        self._batch.clear()
+        self._last_flush = time.monotonic()
+
+    def _add_mouse_input(self, flags: int, dx: int = 0, dy: int = 0, data: int = 0):
+        inp = INPUT()
+        inp.type = INPUT_MOUSE
+        inp.mi.dx = dx
+        inp.mi.dy = dy
+        inp.mi.mouseData = data
+        inp.mi.dwFlags = flags
+        inp.mi.time = 0
+        inp.mi.dwExtraInfo = None
+        self._batch.append(inp)
+
+    def _maybe_flush(self, force: bool = False):
+        now = time.monotonic()
+        if force or len(self._batch) >= BATCH_MAX_SIZE or (now - self._last_flush) >= BATCH_INTERVAL:
+            self._flush_batch()
 
     def key(self, name: str, action: str):
         vk = resolve_key(name)
         if vk is None:
             return
-        with self._lock:
-            if action == "down":
-                self.modifiers_pressed.add(name)
-                _send_key_input(vk, 0)
-            else:
-                self.modifiers_pressed.discard(name)
-                _send_key_input(vk, KEYEVENTF_KEYUP)
+        self._maybe_flush(force=True)
+        if action == "down":
+            self.modifiers_pressed.add(name)
+            inp = INPUT()
+            inp.type = INPUT_KEYBOARD
+            inp.ki.wVk = vk
+            inp.ki.wScan = 0
+            inp.ki.dwFlags = 0
+            inp.ki.time = 0
+            inp.ki.dwExtraInfo = None
+            SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+        else:
+            self.modifiers_pressed.discard(name)
+            inp = INPUT()
+            inp.type = INPUT_KEYBOARD
+            inp.ki.wVk = vk
+            inp.ki.wScan = 0
+            inp.ki.dwFlags = KEYEVENTF_KEYUP
+            inp.ki.time = 0
+            inp.ki.dwExtraInfo = None
+            SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
 
     def mouse_move(self, dx: float, dy: float):
-        with self._lock:
-            _send_mouse_input(MOUSEEVENTF_MOVE, int(dx), int(dy))
+        idx = int(dx)
+        idy = int(dy)
+        if idx == 0 and idy == 0:
+            return
+        self._add_mouse_input(MOUSEEVENTF_MOVE, idx, idy)
+        self._maybe_flush()
 
     def mouse_button(self, button: str, action: str):
         flags = {
@@ -188,49 +243,91 @@ class WindowsSendInputBackend(InputBackend):
         flag = flags.get((button, action))
         if flag is None:
             return
-        with self._lock:
-            _send_mouse_input(flag)
+        self._maybe_flush(force=True)
+        inp = INPUT()
+        inp.type = INPUT_MOUSE
+        inp.mi.dx = 0
+        inp.mi.dy = 0
+        inp.mi.mouseData = 0
+        inp.mi.dwFlags = flag
+        inp.mi.time = 0
+        inp.mi.dwExtraInfo = None
+        SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
 
     def mouse_scroll(self, dx: float, dy: float):
-        with self._lock:
-            if dy != 0:
-                _send_mouse_input(MOUSEEVENTF_WHEEL, data=int(dy) * WHEEL_DELTA)
-            if dx != 0:
-                _send_mouse_input(MOUSEEVENTF_HWHEEL, data=int(dx) * WHEEL_DELTA)
+        self._maybe_flush(force=True)
+        if dy != 0:
+            inp = INPUT()
+            inp.type = INPUT_MOUSE
+            inp.mi.dx = 0
+            inp.mi.dy = 0
+            inp.mi.mouseData = int(dy) * WHEEL_DELTA
+            inp.mi.dwFlags = MOUSEEVENTF_WHEEL
+            inp.mi.time = 0
+            inp.mi.dwExtraInfo = None
+            SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+        if dx != 0:
+            inp = INPUT()
+            inp.type = INPUT_MOUSE
+            inp.mi.dx = 0
+            inp.mi.dy = 0
+            inp.mi.mouseData = int(dx) * WHEEL_DELTA
+            inp.mi.dwFlags = MOUSEEVENTF_HWHEEL
+            inp.mi.time = 0
+            inp.mi.dwExtraInfo = None
+            SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
 
     def type_text(self, text: str):
-        with self._lock:
-            for ch in text:
-                cp = ord(ch)
-                if cp == 0x0D or cp == 0x0A:
-                    _send_key_input(0x0D)
-                    _send_key_input(0x0D, KEYEVENTF_KEYUP)
-                    continue
-                if cp == 0x09:
-                    _send_key_input(0x09)
-                    _send_key_input(0x09, KEYEVENTF_KEYUP)
-                    continue
-                if cp == 0x08:
-                    _send_key_input(0x08)
-                    _send_key_input(0x08, KEYEVENTF_KEYUP)
-                    continue
+        self._maybe_flush(force=True)
+        for ch in text:
+            cp = ord(ch)
+            if cp == 0x0D or cp == 0x0A:
                 inp = INPUT()
                 inp.type = INPUT_KEYBOARD
-                inp.ki.wVk = 0
-                inp.ki.wScan = cp
-                inp.ki.dwFlags = KEYEVENTF_UNICODE
+                inp.ki.wVk = 0x0D
+                inp.ki.wScan = 0
+                inp.ki.dwFlags = 0
                 inp.ki.time = 0
                 inp.ki.dwExtraInfo = None
                 SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+                inp.ki.dwFlags = KEYEVENTF_KEYUP
+                SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+                continue
+            if cp == 0x09:
+                inp = INPUT()
+                inp.type = INPUT_KEYBOARD
+                inp.ki.wVk = 0x09
+                inp.ki.wScan = 0
+                inp.ki.dwFlags = 0
+                inp.ki.time = 0
+                inp.ki.dwExtraInfo = None
+                SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+                inp.ki.dwFlags = KEYEVENTF_KEYUP
+                SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+                continue
+            if cp == 0x08:
+                inp = INPUT()
+                inp.type = INPUT_KEYBOARD
+                inp.ki.wVk = 0x08
+                inp.ki.wScan = 0
+                inp.ki.dwFlags = 0
+                inp.ki.time = 0
+                inp.ki.dwExtraInfo = None
+                SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+                inp.ki.dwFlags = KEYEVENTF_KEYUP
+                SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+                continue
+            inp = INPUT()
+            inp.type = INPUT_KEYBOARD
+            inp.ki.wVk = 0
+            inp.ki.wScan = cp
+            inp.ki.dwFlags = KEYEVENTF_UNICODE
+            inp.ki.time = 0
+            inp.ki.dwExtraInfo = None
+            SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
 
-                inp_up = INPUT()
-                inp_up.type = INPUT_KEYBOARD
-                inp_up.ki.wVk = 0
-                inp_up.ki.wScan = cp
-                inp_up.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP
-                inp_up.ki.time = 0
-                inp_up.ki.dwExtraInfo = None
-                SendInput(1, ctypes.byref(inp_up), ctypes.sizeof(INPUT))
+            inp.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP
+            SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
 
 
 class WindowsVolumeBackend(VolumeBackend):
@@ -252,12 +349,28 @@ class WindowsVolumeBackend(VolumeBackend):
         vk = VK_VOLUME_UP if diff > 0 else VK_VOLUME_DOWN
         steps = min(abs(diff) // 2, 50)
         for _ in range(steps):
-            _send_key_input(vk)
-            _send_key_input(vk, KEYEVENTF_KEYUP)
+            inp = INPUT()
+            inp.type = INPUT_KEYBOARD
+            inp.ki.wVk = vk
+            inp.ki.wScan = 0
+            inp.ki.dwFlags = 0
+            inp.ki.time = 0
+            inp.ki.dwExtraInfo = None
+            SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+            inp.ki.dwFlags = KEYEVENTF_KEYUP
+            SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
             time.sleep(0.01)
 
     def toggle_mute(self) -> bool:
-        _send_key_input(VK_VOLUME_MUTE)
-        _send_key_input(VK_VOLUME_MUTE, KEYEVENTF_KEYUP)
+        inp = INPUT()
+        inp.type = INPUT_KEYBOARD
+        inp.ki.wVk = VK_VOLUME_MUTE
+        inp.ki.wScan = 0
+        inp.ki.dwFlags = 0
+        inp.ki.time = 0
+        inp.ki.dwExtraInfo = None
+        SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+        inp.ki.dwFlags = KEYEVENTF_KEYUP
+        SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
         self._muted = not self._muted
         return self._muted
