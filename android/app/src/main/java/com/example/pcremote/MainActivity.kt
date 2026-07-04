@@ -19,8 +19,9 @@ import com.example.pcremote.ui.ConnectionScreen
 import com.example.pcremote.ui.PCRemoteTheme
 import com.example.pcremote.ui.RemoteScreen
 import com.example.pcremote.viewmodel.RemoteViewModel
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
+import com.google.android.gms.code.scanner.GmsBarcodeScanner
+import com.google.android.gms.code.scanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.barcode.common.Barcode
 
 class MainActivity : ComponentActivity() {
 
@@ -30,19 +31,29 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { _ -> }
 
-    private val qrScanLauncher = registerForActivityResult(ScanContract()) { result ->
-        result?.contents?.let { url ->
-            val wsUrl = url.trim()
-            if (wsUrl.startsWith("ws://")) {
-                val withoutProtocol = wsUrl.removePrefix("ws://")
-                val parts = withoutProtocol.split(":")
-                if (parts.size == 2) {
-                    viewModelRef?.host = parts[0]
-                    viewModelRef?.port = parts[1]
-                    viewModelRef?.connect()
+    private val scannerOptions = GmsBarcodeScannerOptions.Builder()
+        .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+        .build()
+
+    private fun scanQr() {
+        val scanner = GmsBarcodeScanner.getClient(this, scannerOptions)
+        scanner.startScan()
+            .addOnSuccessListener { barcode ->
+                barcode.rawValue?.let { url ->
+                    val trimmed = url.trim()
+                    if (trimmed.startsWith("ws://")) {
+                        val withoutProtocol = trimmed.removePrefix("ws://")
+                        val parts = withoutProtocol.split(":")
+                        if (parts.size == 2) {
+                            viewModelRef?.host = parts[0]
+                            viewModelRef?.port = parts[1]
+                            viewModelRef?.connect()
+                        }
+                    }
                 }
             }
-        }
+            .addOnFailureListener { _ -> }
+            .addOnCanceledListener { }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,17 +92,7 @@ class MainActivity : ComponentActivity() {
             PCRemoteTheme(darkTheme = viewModel.isDarkMode) {
                 PCRemoteApp(
                     viewModel = viewModel,
-                    onScanQr = {
-                        val options = ScanOptions().apply {
-                            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                            setPrompt("Scan QR code from server terminal")
-                            setBeepEnabled(false)
-                            setOrientationLocked(true)
-                            setTorchEnabled(false)
-                            addExtra("SCAN_MODE", "QR_CODE_MODE")
-                        }
-                        qrScanLauncher.launch(options)
-                    }
+                    onScanQr = { scanQr() }
                 )
             }
         }
