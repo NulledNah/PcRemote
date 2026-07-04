@@ -42,10 +42,10 @@ def get_local_ip() -> str:
         return "127.0.0.1"
 
 
-def create_input_backend(disable_mouse_accel: bool = True) -> InputBackend:
+def create_input_backend() -> InputBackend:
     if os.name == 'nt':
         from pcremote.backends.windows import WindowsSendInputBackend
-        return WindowsSendInputBackend(disable_accel=disable_mouse_accel)
+        return WindowsSendInputBackend()
     else:
         return LinuxUinputBackend()
 
@@ -243,6 +243,9 @@ async def run_server(
 
     connected_clients: dict = {}
 
+    if input_dev and hasattr(input_dev, 'start_ticker'):
+        input_dev.start_ticker(asyncio.get_running_loop())
+
     asyncio.create_task(cleanup_stale_clients(connected_clients))
 
     async def handler(ws):
@@ -277,8 +280,6 @@ def main():
                         help="Don't display QR code")
     parser.add_argument("--tray", action="store_true",
                         help="Start minimized in system tray (Windows only)")
-    parser.add_argument("--keep-mouse-accel", action="store_true",
-                        help="Keep Windows mouse acceleration enabled")
     parser.add_argument("--debug", action="store_true",
                         help="Enable debug logging")
     parser.add_argument("--version", action="version",
@@ -309,9 +310,7 @@ def main():
     else:
         try:
             logger.info("Initialising input devices...")
-            input_dev = create_input_backend(
-                disable_mouse_accel=not args.keep_mouse_accel
-            )
+            input_dev = create_input_backend()
             logger.info("Input devices ready.")
         except PermissionError:
             logger.error("Permission denied accessing input device.")
