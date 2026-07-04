@@ -113,7 +113,9 @@ class PythonQrcodeBackend(QrBackend):
             qr.make(fit=True)
             img = qr.make_image(fill_color="black", back_color="white")
             img = img.resize((320, 320), Image.NEAREST)
-        except Exception:
+        except Exception as e:
+            import logging
+            logging.getLogger("pcremote").debug("QR tkinter generation failed: %s", e)
             return False
 
         self._qr_close_flag = threading.Event()
@@ -176,7 +178,9 @@ class PythonQrcodeBackend(QrBackend):
             fd, path = tempfile.mkstemp(suffix='.png', prefix='pcremote_qr_')
             os.close(fd)
             img.save(path, format='PNG')
-        except Exception:
+        except Exception as e:
+            import logging
+            logging.getLogger("pcremote").debug("QR file generation failed: %s", e)
             return False
 
         opened = False

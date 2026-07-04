@@ -3,7 +3,7 @@
 Control your PC's mouse and keyboard from your Android phone over WiFi. Your phone becomes a trackpad + keyboard. No Bluetooth, no installation — just scan a QR code.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v2.0.0_experimental-%237F5A49" alt="Version">
+  <img src="https://img.shields.io/badge/version-v2.0.0-%237F5A49" alt="Version">
   <img src="https://img.shields.io/badge/Windows-10%2F11-%236B493A" alt="Windows">
   <img src="https://img.shields.io/badge/Linux-Fedora%2FWayland-%236B493A" alt="Linux">
   <img src="https://img.shields.io/badge/Android-8.0%2B-%236B493A" alt="Android">
@@ -22,8 +22,11 @@ No Python required. The `.exe` bundles everything.
 
 ### Linux
 ```bash
-git clone https://github.com/nulledv2/PcRemote.git
+git clone https://github.com/NulledNah/PcRemote.git
 cd PcRemote/companion
+# Fedora: sudo dnf install -y kernel-headers
+# Ubuntu/Debian: sudo apt install -y linux-headers-$(uname -r)
+sudo modprobe uinput
 pip install -r requirements.txt -r requirements-linux.txt
 python3 server.py
 ```

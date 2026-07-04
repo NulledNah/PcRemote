@@ -104,18 +104,6 @@ async def handle_client(
 
     try:
         async for raw_message in websocket:
-            if isinstance(raw_message, bytes):
-                if len(raw_message) >= 9 and raw_message[0:1] == b'm':
-                    try:
-                        dx = int.from_bytes(raw_message[1:5], 'big', signed=True)
-                        dy = int.from_bytes(raw_message[5:9], 'big', signed=True)
-                        if input_dev and authenticated:
-                            input_dev.mouse_move(dx, dy)
-                    except Exception:
-                        pass
-                    continue
-                raw_message = raw_message.decode("utf-8", errors="replace")
-
             data = decode_message(raw_message)
             if data is None:
                 continue

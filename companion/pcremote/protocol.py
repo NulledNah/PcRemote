@@ -1,5 +1,4 @@
 import json
-import struct
 from typing import Optional
 
 
@@ -20,30 +19,6 @@ MSG_VOLUME_STATUS = "vs"
 MSG_AUTH = "au"
 MSG_PING = "pi"
 MSG_PONG = "po"
-
-
-def encode_text(data: str) -> bytes:
-    return json.dumps(data).encode("utf-8")
-
-
-def encode_binary_mouse_move(dx: float, dy: float) -> bytes:
-    return struct.pack("!cii", b'm', int(dx), int(dy))
-
-
-def encode_text_message(msg_type: str, **kwargs) -> str:
-    msg = {"t": msg_type, "v": PROTOCOL_VERSION}
-    msg.update(kwargs)
-    return json.dumps(msg)
-
-
-def encode_volume_status(volume: int, muted: bool, source: str = "") -> str:
-    return json.dumps({
-        "t": MSG_VOLUME_STATUS,
-        "f": source,
-        "v": volume,
-        "m": muted,
-        "v2": PROTOCOL_VERSION,
-    })
 
 
 def decode_message(raw: str) -> Optional[dict]:
