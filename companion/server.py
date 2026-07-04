@@ -11,6 +11,7 @@ import json
 import os
 import socket
 import sys
+import threading
 import time
 from typing import Optional
 
@@ -30,6 +31,9 @@ from pcremote.protocol import (
     decode_message,
 )
 
+_profile_stats: dict = {}
+_server_control: dict = {}
+
 
 def get_local_ip() -> str:
     try:
@@ -47,7 +51,7 @@ def create_input_backend() -> InputBackend:
         from pcremote.backends.windows import WindowsSendInputBackend
         return WindowsSendInputBackend()
     else:
-        return LinuxUinputBackend()
+        from pcremote.backends.linux import LinuxUinputBackend
 
 
 def create_volume_backend() -> VolumeBackend:
@@ -55,7 +59,7 @@ def create_volume_backend() -> VolumeBackend:
         from pcremote.backends.windows import WindowsVolumeBackend
         return WindowsVolumeBackend()
     else:
-        return LinuxPactlBackend()
+        from pcremote.backends.linux import LinuxPactlBackend
 
 
 def get_key_resolver():
@@ -65,9 +69,6 @@ def get_key_resolver():
     else:
         from pcremote.backends.linux import resolve_key as rk, needs_shift as ns
         return rk, ns
-
-
-_profile_stats: dict = {}
 
 
 def _profile_msg(msg_type: str, start_time: float, logger):
@@ -99,7 +100,6 @@ async def handle_client(
     logger.info("Client connected: %s", client_addr)
     client_id = f"{client_addr[0]}:{client_addr[1]}"
     connected_clients[client_id] = time.time()
-
     authenticated = not require_auth
 
     try:
@@ -114,10 +114,7 @@ async def handle_client(
                     except Exception:
                         pass
                     continue
-                try:
-                    raw_message = raw_message.decode("utf-8")
-                except UnicodeDecodeError:
-                    continue
+                raw_message = raw_message.decode("utf-8", errors="replace")
 
             data = decode_message(raw_message)
             if data is None:
@@ -156,16 +153,12 @@ async def handle_client(
                 if msg_type == MSG_MOUSE_MOVE:
                     input_dev.mouse_move(data.get("x", 0), data.get("y", 0))
                     _profile_msg("m", msg_start, logger)
-
                 elif msg_type == MSG_MOUSE_DOWN:
                     input_dev.mouse_button(data.get("b", "left"), "down")
-
                 elif msg_type == MSG_MOUSE_UP:
                     input_dev.mouse_button(data.get("b", "left"), "up")
-
                 elif msg_type == MSG_MOUSE_SCROLL:
                     input_dev.mouse_scroll(data.get("x", 0), data.get("y", 0))
-
                 elif msg_type == MSG_KEY_DOWN:
                     name = data.get("c", "")
                     resolve_key, needs_shift = get_key_resolver()
@@ -174,10 +167,8 @@ async def handle_client(
                     input_dev.key(name, "down")
                     if needs_shift(name):
                         input_dev.key("KEY_LEFTSHIFT", "up")
-
                 elif msg_type == MSG_KEY_UP:
                     input_dev.key(data.get("c", ""), "up")
-
                 elif msg_type == MSG_KEY_TAP:
                     name = data.get("c", "")
                     resolve_key, needs_shift = get_key_resolver()
@@ -188,17 +179,14 @@ async def handle_client(
                     input_dev.key(name, "up")
                     if shift:
                         input_dev.key("KEY_LEFTSHIFT", "up")
-
                 elif msg_type == MSG_TYPE_TEXT:
                     input_dev.type_text(data.get("tx", ""))
-
                 elif msg_type == MSG_VOLUME_GET:
                     vol = volume_dev.get_volume()
                     await websocket.send(json.dumps({
                         "t": "vs", "f": "vg", "v": vol["volume"],
                         "m": vol["muted"], "v2": PROTOCOL_VERSION,
                     }))
-
                 elif msg_type == MSG_VOLUME_SET:
                     volume_dev.set_volume(data.get("v", 50))
                     vol = volume_dev.get_volume()
@@ -206,7 +194,6 @@ async def handle_client(
                         "t": "vs", "f": "vs", "v": vol["volume"],
                         "m": vol["muted"], "v2": PROTOCOL_VERSION,
                     }))
-
                 elif msg_type == MSG_VOLUME_MUTE:
                     muted = volume_dev.toggle_mute()
                     vol = volume_dev.get_volume()
@@ -214,7 +201,6 @@ async def handle_client(
                         "t": "vs", "f": "vm", "v": vol["volume"],
                         "m": muted, "v2": PROTOCOL_VERSION,
                     }))
-
             except Exception as e:
                 logger.error("Error processing message type=%s: %s", msg_type, e)
 
@@ -234,52 +220,181 @@ async def cleanup_stale_clients(connected_clients: dict, timeout: float = 30.0):
             connected_clients.pop(cid, None)
 
 
-async def run_server(
-    port: int,
-    input_dev: Optional[InputBackend],
-    volume_dev: VolumeBackend,
-    auth_token: str,
-    require_auth: bool,
-    qr_backend,
-    local_ip: str,
-    logger,
-):
-    url = f"ws://{local_ip}:{port}"
-    if require_auth:
-        token_url = f"ws://{local_ip}:{port}?token={auth_token}"
-    else:
+class ServerInstance:
+    def __init__(self, port, input_dev, volume_dev, auth_token, require_auth,
+                 qr_backend, local_ip, logger):
+        self.port = port
+        self.input_dev = input_dev
+        self.volume_dev = volume_dev
+        self.auth_token = auth_token
+        self.require_auth = require_auth
+        self.qr_backend = qr_backend
+        self.local_ip = local_ip
+        self.logger = logger
+        self._task = None
+        self._stop_event = None
+
+    async def _run(self):
+        url = f"ws://{self.local_ip}:{self.port}"
         token_url = url
+        if self.require_auth:
+            token_url = f"ws://{self.local_ip}:{self.port}?token={self.auth_token}"
 
-    logger.info("=" * 50)
-    logger.info("  PcRemote Server v%s", VERSION)
-    logger.info("=" * 50)
-    logger.info("  Listening on: %s", url)
-    if require_auth:
-        logger.info("  Auth token: %s", auth_token)
-    logger.info("  Protocol version: %d", PROTOCOL_VERSION)
-    logger.info("  OS: %s", "Windows" if os.name == 'nt' else "Linux")
-    logger.info("=" * 50)
+        self.logger.info("=" * 50)
+        self.logger.info("  PcRemote Server v%s", VERSION)
+        self.logger.info("=" * 50)
+        self.logger.info("  Listening on: %s", url)
+        if self.require_auth:
+            self.logger.info("  Auth token: %s", self.auth_token)
+        self.logger.info("  Protocol version: %d", PROTOCOL_VERSION)
+        self.logger.info("  OS: %s", "Windows" if os.name == 'nt' else "Linux")
+        self.logger.info("=" * 50)
 
-    qr_backend.display(token_url)
+        self.qr_backend.display(token_url)
 
-    connected_clients: dict = {}
+        if self.input_dev and hasattr(self.input_dev, 'start_ticker'):
+            self.input_dev.start_ticker(asyncio.get_running_loop())
 
-    if input_dev and hasattr(input_dev, 'start_ticker'):
-        input_dev.start_ticker(asyncio.get_running_loop())
+        connected_clients: dict = {}
+        asyncio.create_task(cleanup_stale_clients(connected_clients))
 
-    asyncio.create_task(cleanup_stale_clients(connected_clients))
+        async def handler(ws):
+            await handle_client(ws, self.input_dev, self.volume_dev,
+                                self.auth_token, self.require_auth,
+                                connected_clients, self.logger)
 
-    async def handler(ws):
-        await handle_client(ws, input_dev, volume_dev, auth_token, require_auth, connected_clients, logger)
+        self._stop_event = asyncio.Event()
+        async with serve(handler, "0.0.0.0", self.port, ping_interval=20, ping_timeout=10):
+            self.logger.info("Server running.")
+            await self._stop_event.wait()
 
-    stop = asyncio.Future()
+    def start(self, loop):
+        self._task = loop.create_task(self._run())
 
-    async with serve(handler, "0.0.0.0", port, ping_interval=20, ping_timeout=10):
-        logger.info("Server running. Press Ctrl+C to stop.")
+    def stop(self):
+        if self._stop_event:
+            self._stop_event.set()
+        if self.input_dev:
+            self.input_dev.close()
+
+
+class AppController:
+    def __init__(self, args, logger):
+        self.args = args
+        self.logger = logger
+        self.config = load_config()
+        self.require_auth = args.password is not None
+        self.auth_token = args.password or get_or_create_token(self.config)
+        self.ip = get_local_ip()
+        self.server = None
+        self.input_dev = None
+        self.volume_dev = None
+        self.qr_backend = None
+        self._loop = None
+
+    def _create_backends(self):
+        if self.args.no_input:
+            self.input_dev = None
+        else:
+            self.input_dev = create_input_backend()
+        self.volume_dev = create_volume_backend()
+        self.qr_backend = QrBackends.create()
+
+    def _destroy_backends(self):
+        if self.input_dev:
+            try:
+                self.input_dev.close()
+            except Exception:
+                pass
+            self.input_dev = None
+
+    def start_server(self):
+        if self.server is not None:
+            return
+        self._create_backends()
+        self.server = ServerInstance(
+            self.args.port, self.input_dev, self.volume_dev,
+            self.auth_token, self.require_auth,
+            self.qr_backend, self.ip, self.logger,
+        )
+        self.server.start(self._loop)
+        self.logger.info("Server started on %s:%d", self.ip, self.args.port)
+
+    def stop_server(self):
+        if self.server is None:
+            return
+        self.server.stop()
+        self.server = None
+        self._destroy_backends()
+        self.logger.info("Server stopped.")
+
+    def run(self):
+        if os.name == 'nt' and not self.args.console:
+            self._run_tray_mode()
+        else:
+            self._run_console_mode()
+
+    def _run_console_mode(self):
+        if not self.args.no_diagnostics:
+            self.logger.info("Running startup diagnostics...")
+            results = run_diagnostics(self.args.port, self.logger)
+            if results.get("firewall") == "blocked":
+                self.logger.info("Attempting to auto-fix firewall...")
+                auto_fix_firewall(self.args.port, self.logger)
+
+        if not self.args.no_input:
+            self.logger.info("Initialising input devices...")
+        self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
+        self.start_server()
         try:
-            await stop
-        except asyncio.CancelledError:
-            pass
+            self._loop.run_forever()
+        except KeyboardInterrupt:
+            self.logger.info("Shutting down...")
+        finally:
+            self.stop_server()
+            self._loop.close()
+            self.logger.info("Server stopped.")
+
+    def _run_tray_mode(self):
+        from pcremote.tray import run_tray, show_console
+
+        self.logger.info("Running startup diagnostics...")
+        results = run_diagnostics(self.args.port, self.logger)
+        if results.get("firewall") == "blocked":
+            self.logger.info("Attempting to auto-fix firewall...")
+            auto_fix_firewall(self.args.port, self.logger)
+
+        self._loop = asyncio.new_event_loop()
+
+        def _run_loop():
+            asyncio.set_event_loop(self._loop)
+            self._loop.run_forever()
+
+        loop_thread = threading.Thread(target=_run_loop, daemon=True)
+        loop_thread.start()
+
+        self.start_server()
+
+        def on_start():
+            self._loop.call_soon_threadsafe(self.start_server)
+
+        def on_stop():
+            self._loop.call_soon_threadsafe(self.stop_server)
+
+        def on_quit():
+            self._loop.call_soon_threadsafe(self._loop.stop)
+            loop_thread.join(timeout=2)
+            sys.exit(0)
+
+        try:
+            run_tray(on_stop, on_start, on_quit,
+                     on_show_console=show_console)
+        except KeyboardInterrupt:
+            self.logger.info("Shutting down...")
+        finally:
+            self.stop_server()
+            self._loop.call_soon_threadsafe(self._loop.stop)
 
 
 def main():
@@ -290,7 +405,8 @@ def main():
             pass
 
     parser = argparse.ArgumentParser(description="PC Remote companion server")
-    parser.add_argument("--port", type=int, default=8765, help="WebSocket port (default: 8765)")
+    parser.add_argument("--port", type=int, default=8765,
+                        help="WebSocket port (default: 8765)")
     parser.add_argument("--password", type=str, default=None,
                         help="Require authentication token for connections")
     parser.add_argument("--no-input", action="store_true",
@@ -299,8 +415,8 @@ def main():
                         help="Skip startup diagnostics")
     parser.add_argument("--no-qr", action="store_true",
                         help="Don't display QR code")
-    parser.add_argument("--tray", action="store_true",
-                        help="Start minimized in system tray (Windows only)")
+    parser.add_argument("--console", action="store_true",
+                        help="Run in console mode (skip system tray on Windows)")
     parser.add_argument("--debug", action="store_true",
                         help="Enable debug logging")
     parser.add_argument("--version", action="version",
@@ -312,51 +428,8 @@ def main():
     logger = setup_logging(getattr(logging, log_level))
     logger.info("PcRemote v%s starting...", VERSION)
 
-    if not args.no_diagnostics:
-        logger.info("Running startup diagnostics...")
-        results = run_diagnostics(args.port, logger)
-        if results.get("firewall") == "blocked":
-            logger.info("Attempting to auto-fix firewall...")
-            auto_fix_firewall(args.port, logger)
-
-    ip = get_local_ip()
-
-    config = load_config()
-    require_auth = args.password is not None
-    auth_token = args.password or get_or_create_token(config)
-
-    if args.no_input:
-        input_dev = None
-        logger.info("TEST MODE - no input simulation")
-    else:
-        try:
-            logger.info("Initialising input devices...")
-            input_dev = create_input_backend()
-            logger.info("Input devices ready.")
-        except PermissionError:
-            logger.error("Permission denied accessing input device.")
-            if os.name != 'nt':
-                logger.error("  Run: sudo modprobe uinput")
-                logger.error("  Then: sudo usermod -aG input $USER")
-            sys.exit(1)
-        except Exception as e:
-            logger.error("Failed to initialise input: %s", e)
-            sys.exit(1)
-
-    volume_dev = create_volume_backend()
-    qr_backend = QrBackends.create()
-
-    try:
-        asyncio.run(run_server(
-            args.port, input_dev, volume_dev, auth_token,
-            require_auth, qr_backend, ip, logger,
-        ))
-    except KeyboardInterrupt:
-        logger.info("Shutting down...")
-    finally:
-        if input_dev:
-            input_dev.close()
-        logger.info("Server stopped.")
+    app = AppController(args, logger)
+    app.run()
 
 
 if __name__ == "__main__":
