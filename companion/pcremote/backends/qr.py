@@ -61,25 +61,19 @@ class PythonQrcodeBackend(QrBackend):
     def generate(self, data: str) -> Optional[str]:
         try:
             import qrcode
-            qr = qrcode.QRCode(border=1)
+            qr = qrcode.QRCode(box_size=1, border=2)
             qr.add_data(data)
             qr.make(fit=True)
             modules = qr.modules
             size = len(modules)
             lines = []
-            for row in range(0, size, 2):
+            for row in range(size):
                 parts = []
                 for col in range(size):
-                    top = modules[row][col]
-                    bottom = modules[row + 1][col] if row + 1 < size else False
-                    if top and bottom:
-                        parts.append('\u2588')
-                    elif top:
-                        parts.append('\u2580')
-                    elif bottom:
-                        parts.append('\u2584')
+                    if modules[row][col]:
+                        parts.append('\u2588\u2588')
                     else:
-                        parts.append(' ')
+                        parts.append('  ')
                 lines.append(''.join(parts))
             return '\n'.join(lines)
         except Exception:
