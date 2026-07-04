@@ -46,26 +46,6 @@ shell32 = ctypes.windll.shell32
 kernel32 = ctypes.windll.kernel32
 gdi32 = ctypes.windll.gdi32
 
-user32.CreateWindowExW.argtypes = [wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD,
-                                    ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
-                                    wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID]
-user32.CreateWindowExW.restype = wintypes.HWND
-user32.DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
-user32.DefWindowProcW.restype = ctypes.c_long
-user32.RegisterClassW.argtypes = [ctypes.POINTER(_WNDCLASSW)]
-user32.RegisterClassW.restype = wintypes.ATOM
-user32.DestroyWindow.argtypes = [wintypes.HWND]
-user32.LoadImageW.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.UINT, ctypes.c_int, ctypes.c_int, wintypes.UINT]
-user32.LoadImageW.restype = wintypes.HANDLE
-user32.PeekMessageW.argtypes = [ctypes.POINTER(_MSG), wintypes.HWND, wintypes.UINT, wintypes.UINT, wintypes.UINT]
-user32.PeekMessageW.restype = wintypes.BOOL
-user32.TranslateMessage.argtypes = [ctypes.POINTER(_MSG)]
-user32.DispatchMessageW.argtypes = [ctypes.POINTER(_MSG)]
-kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
-kernel32.GetModuleHandleW.restype = wintypes.HMODULE
-shell32.Shell_NotifyIconW.argtypes = [wintypes.DWORD, ctypes.POINTER(_NOTIFYICONDATA)]
-shell32.Shell_NotifyIconW.restype = wintypes.BOOL
-
 
 class _WNDCLASSW(ctypes.Structure):
     _fields_ = [
@@ -92,6 +72,27 @@ class _MSG(ctypes.Structure):
         ("pt_x", wintypes.LONG),
         ("pt_y", wintypes.LONG),
     ]
+
+
+user32.CreateWindowExW.argtypes = [wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD,
+                                    ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                    wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID]
+user32.CreateWindowExW.restype = wintypes.HWND
+user32.DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+user32.DefWindowProcW.restype = ctypes.c_long
+user32.RegisterClassW.argtypes = [ctypes.POINTER(_WNDCLASSW)]
+user32.RegisterClassW.restype = wintypes.ATOM
+user32.DestroyWindow.argtypes = [wintypes.HWND]
+user32.LoadImageW.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.UINT, ctypes.c_int, ctypes.c_int, wintypes.UINT]
+user32.LoadImageW.restype = wintypes.HANDLE
+user32.PeekMessageW.argtypes = [ctypes.POINTER(_MSG), wintypes.HWND, wintypes.UINT, wintypes.UINT, wintypes.UINT]
+user32.PeekMessageW.restype = wintypes.BOOL
+user32.TranslateMessage.argtypes = [ctypes.POINTER(_MSG)]
+user32.DispatchMessageW.argtypes = [ctypes.POINTER(_MSG)]
+kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
+kernel32.GetModuleHandleW.restype = wintypes.HMODULE
+shell32.Shell_NotifyIconW.argtypes = [wintypes.DWORD, ctypes.POINTER(_NOTIFYICONDATA)]
+shell32.Shell_NotifyIconW.restype = wintypes.BOOL
 
 
 def _find_icon_path():
