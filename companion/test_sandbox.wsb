@@ -7,6 +7,6 @@
     </MappedFolder>
   </MappedFolders>
   <LogonCommand>
-    <Command>C:\PcRemote\PcRemoteServer.exe</Command>
+    <Command>cmd /k C:\PcRemote\PcRemoteServer.exe --port 9876 --no-qr</Command>
   </LogonCommand>
 </Configuration>
