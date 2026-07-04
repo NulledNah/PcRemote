@@ -47,6 +47,33 @@ kernel32 = ctypes.windll.kernel32
 gdi32 = ctypes.windll.gdi32
 
 
+class _WNDCLASSW(ctypes.Structure):
+    _fields_ = [
+        ("style", wintypes.UINT),
+        ("lpfnWndProc", ctypes.WINFUNCTYPE(ctypes.c_long, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)),
+        ("cbClsExtra", ctypes.c_int),
+        ("cbWndExtra", ctypes.c_int),
+        ("hInstance", wintypes.HINSTANCE),
+        ("hIcon", wintypes.HICON),
+        ("hCursor", wintypes.HANDLE),
+        ("hbrBackground", wintypes.HANDLE),
+        ("lpszMenuName", wintypes.LPCWSTR),
+        ("lpszClassName", wintypes.LPCWSTR),
+    ]
+
+
+class _MSG(ctypes.Structure):
+    _fields_ = [
+        ("hwnd", wintypes.HWND),
+        ("message", wintypes.UINT),
+        ("wParam", wintypes.WPARAM),
+        ("lParam", wintypes.LPARAM),
+        ("time", wintypes.DWORD),
+        ("pt_x", wintypes.LONG),
+        ("pt_y", wintypes.LONG),
+    ]
+
+
 def _find_icon_path():
     candidates = []
     try:
@@ -90,7 +117,7 @@ class NativeTrayIcon:
         cls_name = f"PcRemoteTray_{id(self)}"
         wndproc = ctypes.WINFUNCTYPE(ctypes.c_long, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)(self._wndproc)
 
-        wc = wintypes.WNDCLASSW()
+        wc = _WNDCLASSW()
         wc.lpfnWndProc = wndproc
         wc.hInstance = kernel32.GetModuleHandleW(None)
         wc.lpszClassName = cls_name
@@ -136,7 +163,7 @@ class NativeTrayIcon:
         return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
 
     def _message_loop(self):
-        msg = wintypes.MSG()
+        msg = _MSG()
         while self._running:
             while user32.PeekMessageW(ctypes.byref(msg), 0, 0, 0, 1):
                 user32.TranslateMessage(ctypes.byref(msg))
