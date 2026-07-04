@@ -94,15 +94,13 @@ class PythonQrcodeBackend(QrBackend):
                 return True
             return False
         else:
+            file_shown = self._display_file(data)
             result = self.generate(data)
             if result:
                 print()
                 print(result)
                 print()
-                return True
-            if self._display_file(data):
-                return True
-            return False
+            return bool(result) or file_shown
 
     def _display_tkinter(self, data: str) -> bool:
         try:

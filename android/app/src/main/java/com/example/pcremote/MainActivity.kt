@@ -87,6 +87,8 @@ class MainActivity : ComponentActivity() {
                             setPrompt("Scan QR code from server terminal")
                             setBeepEnabled(false)
                             setOrientationLocked(true)
+                            setTorchEnabled(false)
+                            addExtra("SCAN_MODE", "QR_CODE_MODE")
                         }
                         qrScanLauncher.launch(options)
                     }
