@@ -21,6 +21,7 @@ def build():
         "--console",
         "--name", "PcRemoteServer",
         "--add-data", f"pcremote{os.pathsep}pcremote",
+        "--icon", "icon.ico",
         "--hidden-import", "websockets",
         "--hidden-import", "qrcode",
         "--hidden-import", "qrcode.image.pil",
