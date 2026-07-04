@@ -15,6 +15,15 @@ android/local.properties
 __pycache__/
 *.pyc
 companion/__pycache__/
+*.egg-info/
+
+# PyInstaller
+companion/build/
+companion/dist/
+*.spec
+
+# Logs
+*.log
 
 # OS
 .DS_Store
