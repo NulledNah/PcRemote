@@ -177,7 +177,7 @@ class WindowsSendInputBackend(InputBackend):
             return
         n = len(self._batch)
         arr = (INPUT * n)(*self._batch)
-        SendInput(n, ctypes.byref(arr), ctypes.sizeof(INPUT))
+        SendInput(n, ctypes.cast(arr, ctypes.POINTER(INPUT)), ctypes.sizeof(INPUT))
         self._batch.clear()
         self._last_flush = time.monotonic()
 
