@@ -3,10 +3,10 @@
     <MappedFolder>
       <HostFolder>C:\Users\10293\Desktop\Repos\PcRemote\companion\dist</HostFolder>
       <SandboxFolder>C:\PcRemote</SandboxFolder>
-      <ReadOnly>true</ReadOnly>
+      <ReadOnly>false</ReadOnly>
     </MappedFolder>
   </MappedFolders>
   <LogonCommand>
-    <Command>cmd /k C:\PcRemote\PcRemoteServer.exe --port 9876</Command>
+    <Command>cmd /c start cmd /k "cd /d C:\PcRemote && PcRemoteServer.exe --port 9876"</Command>
   </LogonCommand>
 </Configuration>
