@@ -95,12 +95,9 @@ async def handle_client(
     require_auth: bool,
     connected_clients: dict,
     logger,
-    on_connect=None,
 ):
     client_addr = websocket.remote_address
     logger.info("Client connected: %s", client_addr)
-    if on_connect:
-        on_connect()
     client_id = f"{client_addr[0]}:{client_addr[1]}"
     connected_clients[client_id] = time.time()
     authenticated = not require_auth
@@ -225,7 +222,7 @@ async def cleanup_stale_clients(connected_clients: dict, timeout: float = 30.0):
 
 class ServerInstance:
     def __init__(self, port, input_dev, volume_dev, auth_token, require_auth,
-                 qr_backend, local_ip, logger, on_connect=None):
+                 qr_backend, local_ip, logger):
         self.port = port
         self.input_dev = input_dev
         self.volume_dev = volume_dev
@@ -234,7 +231,6 @@ class ServerInstance:
         self.qr_backend = qr_backend
         self.local_ip = local_ip
         self.logger = logger
-        self.on_connect = on_connect
         self._task = None
         self._stop_event = None
 
@@ -263,8 +259,7 @@ class ServerInstance:
         async def handler(ws):
             await handle_client(ws, self.input_dev, self.volume_dev,
                                 self.auth_token, self.require_auth,
-                                connected_clients, self.logger,
-                                on_connect=self.on_connect)
+                                connected_clients, self.logger)
 
         self._stop_event = asyncio.Event()
         async with serve(handler, "0.0.0.0", self.port, ping_interval=20, ping_timeout=10):
@@ -319,7 +314,6 @@ class AppController:
             self.args.port, self.input_dev, self.volume_dev,
             self.auth_token, self.require_auth,
             self.qr_backend, self.ip, self.logger,
-            on_connect=lambda: self.qr_backend.close_qr(),
         )
         self.server.start(self._loop)
         self.logger.info("Server started on %s:%d", self.ip, self.args.port)
@@ -332,13 +326,15 @@ class AppController:
         self._destroy_backends()
         self.logger.info("Server stopped.")
 
-    def show_qr(self):
+    def get_connection_url(self) -> str:
         url = f"ws://{self.ip}:{self.args.port}"
         if self.require_auth:
             url = f"ws://{self.ip}:{self.args.port}?token={self.auth_token}"
-        if self.qr_backend is None:
-            self.qr_backend = QrBackends.create()
-        self.qr_backend.display(url)
+        return url
+
+    def close_qr_window(self):
+        if self.qr_backend:
+            self.qr_backend.close_qr()
 
     def run(self):
         if os.name == 'nt' and not self.args.console:
@@ -369,7 +365,7 @@ class AppController:
             self.logger.info("Server stopped.")
 
     def _run_tray_mode(self):
-        from pcremote.tray import run_tray, show_console
+        from pcremote.tray import run_tray
 
         self.logger.info("Running startup diagnostics...")
         results = run_diagnostics(self.args.port, self.logger)
@@ -400,13 +396,10 @@ class AppController:
             loop_thread.join(timeout=2)
             sys.exit(0)
 
-        def on_show_qr():
-            self.show_qr()
-
         try:
             run_tray(on_stop, on_start, on_quit,
-                     on_show_console=show_console, on_init=on_init,
-                     on_show_qr=on_show_qr)
+                     on_init=on_init,
+                     get_connection_url=self.get_connection_url)
         except KeyboardInterrupt:
             self.logger.info("Shutting down...")
         finally:
