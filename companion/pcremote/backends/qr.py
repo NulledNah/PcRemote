@@ -87,17 +87,28 @@ class PythonQrcodeBackend(QrBackend):
 
     def display(self, data: str) -> bool:
         self.close_qr()
-        if os.name == 'nt' and self._display_tkinter(data):
-            return True
-        if self._display_file(data):
-            return True
-        result = self.generate(data)
-        if result:
-            print()
-            print(result)
-            print()
-            return True
-        return False
+        if os.name == 'nt':
+            if self._display_tkinter(data):
+                return True
+            result = self.generate(data)
+            if result:
+                print()
+                print(result)
+                print()
+                return True
+            if self._display_file(data):
+                return True
+            return False
+        else:
+            result = self.generate(data)
+            if result:
+                print()
+                print(result)
+                print()
+                return True
+            if self._display_file(data):
+                return True
+            return False
 
     def _display_tkinter(self, data: str) -> bool:
         try:
