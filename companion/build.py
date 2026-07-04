@@ -33,6 +33,8 @@ def build():
         "--hidden-import", "pycaw.pycaw",
         "--hidden-import", "comtypes",
         "--hidden-import", "comtypes.stream",
+        "--hidden-import", "pystray",
+        "--hidden-import", "pystray._win32",
         "--clean",
         "--noconfirm",
         "server.py",

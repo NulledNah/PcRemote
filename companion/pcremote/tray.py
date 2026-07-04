@@ -1,98 +1,8 @@
-import ctypes
-from ctypes import wintypes
 import os
 import sys
 import threading
 import time
 from datetime import datetime
-
-
-WM_USER = 0x0400
-WM_LBUTTONUP = 0x0202
-WM_RBUTTONUP = 0x0205
-WM_TRAYICON = WM_USER + 1
-NIM_ADD = 0
-NIM_DELETE = 2
-NIM_MODIFY = 1
-NIF_MESSAGE = 1
-NIF_ICON = 2
-NIF_TIP = 4
-NIF_INFO = 0x10
-NIIF_INFO = 1
-
-NOTIFYICONDATAW_SIZE = ctypes.sizeof(wintypes.DWORD) * 2 + ctypes.sizeof(wintypes.HWND) + ctypes.sizeof(wintypes.UINT) * 2 + ctypes.sizeof(wintypes.WCHAR) * 128 + ctypes.sizeof(wintypes.DWORD) + ctypes.sizeof(wintypes.WCHAR) * 256 + ctypes.sizeof(wintypes.DWORD)
-
-
-class _NOTIFYICONDATA(ctypes.Structure):
-    _fields_ = [
-        ("cbSize", wintypes.DWORD),
-        ("hWnd", wintypes.HWND),
-        ("uID", wintypes.UINT),
-        ("uFlags", wintypes.UINT),
-        ("uCallbackMessage", wintypes.UINT),
-        ("hIcon", wintypes.HICON),
-        ("szTip", wintypes.WCHAR * 128),
-        ("dwState", wintypes.DWORD),
-        ("dwStateMask", wintypes.DWORD),
-        ("szInfo", wintypes.WCHAR * 256),
-        ("uVersion", wintypes.UINT),
-        ("szInfoTitle", wintypes.WCHAR * 64),
-        ("dwInfoFlags", wintypes.DWORD),
-    ]
-
-
-user32 = ctypes.windll.user32
-shell32 = ctypes.windll.shell32
-kernel32 = ctypes.windll.kernel32
-gdi32 = ctypes.windll.gdi32
-
-
-class _WNDCLASSW(ctypes.Structure):
-    _fields_ = [
-        ("style", wintypes.UINT),
-        ("lpfnWndProc", ctypes.WINFUNCTYPE(ctypes.c_long, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)),
-        ("cbClsExtra", ctypes.c_int),
-        ("cbWndExtra", ctypes.c_int),
-        ("hInstance", wintypes.HINSTANCE),
-        ("hIcon", wintypes.HICON),
-        ("hCursor", wintypes.HANDLE),
-        ("hbrBackground", wintypes.HANDLE),
-        ("lpszMenuName", wintypes.LPCWSTR),
-        ("lpszClassName", wintypes.LPCWSTR),
-    ]
-
-
-class _MSG(ctypes.Structure):
-    _fields_ = [
-        ("hwnd", wintypes.HWND),
-        ("message", wintypes.UINT),
-        ("wParam", wintypes.WPARAM),
-        ("lParam", wintypes.LPARAM),
-        ("time", wintypes.DWORD),
-        ("pt_x", wintypes.LONG),
-        ("pt_y", wintypes.LONG),
-    ]
-
-
-user32.CreateWindowExW.argtypes = [wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD,
-                                    ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
-                                    wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID]
-user32.CreateWindowExW.restype = wintypes.HWND
-user32.DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
-user32.DefWindowProcW.restype = ctypes.c_long
-user32.RegisterClassW.argtypes = [ctypes.POINTER(_WNDCLASSW)]
-user32.RegisterClassW.restype = wintypes.ATOM
-user32.DestroyWindow.argtypes = [wintypes.HWND]
-user32.LoadImageW.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.UINT, ctypes.c_int, ctypes.c_int, wintypes.UINT]
-user32.LoadImageW.restype = wintypes.HANDLE
-user32.PeekMessageW.argtypes = [ctypes.POINTER(_MSG), wintypes.HWND, wintypes.UINT, wintypes.UINT, wintypes.UINT]
-user32.PeekMessageW.restype = wintypes.BOOL
-user32.TranslateMessage.argtypes = [ctypes.POINTER(_MSG)]
-user32.DispatchMessageW.argtypes = [ctypes.POINTER(_MSG)]
-kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
-kernel32.GetModuleHandleW.restype = wintypes.HMODULE
-shell32.Shell_NotifyIconW.argtypes = [wintypes.DWORD, ctypes.POINTER(_NOTIFYICONDATA)]
-shell32.Shell_NotifyIconW.restype = wintypes.BOOL
 
 
 def _find_icon_path():
@@ -111,13 +21,21 @@ def _find_icon_path():
     return None
 
 
-def _load_hicon():
-    path = _find_icon_path()
-    if path:
-        hicon = user32.LoadImageW(None, path, 1, 0, 0, 0x00000010 | 0x00000040)
-        if hicon:
-            return hicon
-    return user32.LoadIconW(0, 32512)
+def _load_image():
+    icon_path = _find_icon_path()
+    if icon_path:
+        try:
+            from PIL import Image
+            return Image.open(icon_path)
+        except Exception:
+            pass
+
+    from PIL import Image, ImageDraw
+    img = Image.new('RGB', (64, 64), color='#1a73e8')
+    draw = ImageDraw.Draw(img)
+    draw.rectangle([16, 20, 48, 44], fill='white')
+    draw.polygon([(30, 44), (50, 32), (50, 56)], fill='white')
+    return img
 
 
 def _get_log_path():
@@ -126,84 +44,17 @@ def _get_log_path():
                         f"pcremote-{datetime.now():%Y%m%d}.log")
 
 
-class NativeTrayIcon:
-    def __init__(self, on_left_click=None, on_right_click=None):
-        self._on_left = on_left_click
-        self._on_right = on_right_click
-        self._hicon = _load_hicon()
-        self._hwnd = None
-        self._running = False
-
-    def start(self):
-        cls_name = f"PcRemoteTray_{id(self)}"
-        wndproc = ctypes.WINFUNCTYPE(ctypes.c_long, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)(self._wndproc)
-
-        wc = _WNDCLASSW()
-        wc.lpfnWndProc = wndproc
-        wc.hInstance = kernel32.GetModuleHandleW(None)
-        wc.lpszClassName = cls_name
-        user32.RegisterClassW(ctypes.byref(wc))
-
-        self._hwnd = user32.CreateWindowExW(0, cls_name, "PcRemote", 0, 0, 0, 0, 0, 0, 0, 0, wc.hInstance, None)
-
-        self._add_icon()
-        self._running = True
-        self._message_loop()
-
-    def stop(self):
-        self._running = False
-        if self._hwnd:
-            self._remove_icon()
-            user32.DestroyWindow(self._hwnd)
-            self._hwnd = None
-
-    def _add_icon(self):
-        nid = _NOTIFYICONDATA()
-        nid.cbSize = ctypes.sizeof(_NOTIFYICONDATA)
-        nid.hWnd = self._hwnd
-        nid.uID = 1
-        nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP
-        nid.uCallbackMessage = WM_TRAYICON
-        nid.hIcon = self._hicon
-        nid.szTip = "PcRemote Server"
-        shell32.Shell_NotifyIconW(NIM_ADD, ctypes.byref(nid))
-
-    def _remove_icon(self):
-        nid = _NOTIFYICONDATA()
-        nid.cbSize = ctypes.sizeof(_NOTIFYICONDATA)
-        nid.hWnd = self._hwnd
-        nid.uID = 1
-        shell32.Shell_NotifyIconW(NIM_DELETE, ctypes.byref(nid))
-
-    def _wndproc(self, hwnd, msg, wparam, lparam):
-        if msg == WM_TRAYICON:
-            if lparam == WM_LBUTTONUP and self._on_left:
-                self._on_left()
-            elif lparam == WM_RBUTTONUP and self._on_right:
-                self._on_right()
-        return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
-
-    def _message_loop(self):
-        msg = _MSG()
-        while self._running:
-            while user32.PeekMessageW(ctypes.byref(msg), 0, 0, 0, 1):
-                user32.TranslateMessage(ctypes.byref(msg))
-                user32.DispatchMessageW(ctypes.byref(msg))
-            time.sleep(0.05)
-
-
 class DashboardWindow:
     def __init__(self, connection_url: str):
         self._url = connection_url
         self._root = None
         self._ready = threading.Event()
-        self._show_flag = threading.Event()
+        self._show_event = threading.Event()
         self._close_flag = threading.Event()
         self._logs_visible = False
         self._log_text = None
         self._log_pos = 0
         self._thread = None
-        self._switch_btn = None
 
     def _create(self):
         import tkinter as tk
@@ -255,7 +106,6 @@ class DashboardWindow:
         url_label.pack(pady=(5, 0))
 
         self._log_frame = tk.Frame(main_frame, bg=BG)
-
         scrollbar = tk.Scrollbar(self._log_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
@@ -275,16 +125,11 @@ class DashboardWindow:
         bottom_frame = tk.Frame(self._root, bg=BG)
         bottom_frame.pack(fill=tk.X, padx=15, pady=(0, 10))
 
-        self._switch_var = tk.BooleanVar(value=False)
-
         switch_canvas = tk.Canvas(
             bottom_frame, width=44, height=24,
             bg=BG, highlightthickness=0
         )
         switch_canvas.pack(side=tk.LEFT)
-
-        self._switch_btn = switch_canvas
-        self._switch_canvas = switch_canvas
 
         def _draw_switch(on=False):
             switch_canvas.delete("all")
@@ -304,9 +149,7 @@ class DashboardWindow:
         switch_label.pack(side=tk.LEFT)
 
         def _on_switch_click(event):
-            current = self._switch_var.get()
-            self._switch_var.set(not current)
-            self._logs_visible = not current
+            self._logs_visible = not self._logs_visible
             _draw_switch(self._logs_visible)
             self._update_log_visibility()
 
@@ -354,8 +197,8 @@ class DashboardWindow:
             self._create()
             while not self._close_flag.is_set():
                 try:
-                    if self._show_flag.wait(timeout=0.1):
-                        self._show_flag.clear()
+                    if self._show_event.wait(timeout=0.1):
+                        self._show_event.clear()
                         if self._root:
                             self._root.deiconify()
                             self._root.lift()
@@ -374,10 +217,10 @@ class DashboardWindow:
             self._thread = threading.Thread(target=self._run, daemon=True)
             self._thread.start()
             self._ready.wait(timeout=3)
-        self._show_flag.set()
+        self._show_event.set()
 
     def hide(self):
-        self._show_flag.clear()
+        self._show_event.clear()
         if self._root:
             try:
                 self._root.withdraw()
@@ -393,38 +236,16 @@ class DashboardWindow:
                 pass
 
 
-def _create_rounded_rect(canvas, x1, y1, x2, y2, r, **kwargs):
-    """Helper to create rounded rectangle on tkinter canvas."""
+def _rounded_rect(canvas, x1, y1, x2, y2, r, **kwargs):
     points = [
-        x1 + r, y1,
-        x2 - r, y1,
-        x2, y1,
-        x2, y1 + r,
-        x2, y2 - r,
-        x2, y2,
-        x2 - r, y2,
-        x1 + r, y2,
-        x1, y2,
-        x1, y2 - r,
-        x1, y1 + r,
-        x1, y1,
+        x1 + r, y1, x2 - r, y1,
+        x2, y1, x2, y1 + r,
+        x2, y2 - r, x2, y2,
+        x2 - r, y2, x1 + r, y2,
+        x1, y2, x1, y2 - r,
+        x1, y1 + r, x1, y1,
     ]
     return canvas.create_polygon(points, smooth=True, **kwargs)
-
-
-def _show_popup_menu(menu_items):
-    import tkinter as tk
-    popup = tk.Menu(None, tearoff=0, bg='white', fg='#333',
-                    activebackground='#1a73e8', activeforeground='white',
-                    font=("Segoe UI", 9))
-    for label, callback, enabled in menu_items:
-        if label == '-':
-            popup.add_separator()
-        else:
-            state = tk.NORMAL if enabled else tk.DISABLED
-            popup.add_command(label=label, command=callback, state=state)
-    popup.tk_popup(*popup.winfo_pointerxy())
-    popup.grab_release()
 
 
 def run_tray(on_stop_server, on_start_server, on_quit,
@@ -432,58 +253,65 @@ def run_tray(on_stop_server, on_start_server, on_quit,
     if os.name != 'nt':
         return False
 
+    try:
+        from pystray import Icon as TrayIcon, Menu, MenuItem
+    except ImportError:
+        return False
+
+    image = _load_image()
     get_connection_url = get_connection_url or (lambda: "")
     state = {"running": True, "dashboard": None}
 
-    def do_dashboard():
+    def do_dashboard(icon, item):
         if state["dashboard"] is None:
             url = get_connection_url()
             state["dashboard"] = DashboardWindow(url)
         state["dashboard"].show()
 
-    def do_stop():
+    def do_stop(icon, item):
         if state["running"]:
             on_stop_server()
             state["running"] = False
+            icon.menu = _build_menu(state, do_dashboard, do_stop, do_start, do_quit)
+            icon.update_menu()
 
-    def do_start():
+    def do_start(icon, item):
         if not state["running"]:
             on_start_server()
             state["running"] = True
+            icon.menu = _build_menu(state, do_dashboard, do_stop, do_start, do_quit)
+            icon.update_menu()
 
-    def do_quit():
+    def do_quit(icon, item):
         if state["running"]:
             on_stop_server()
             state["running"] = False
         if state["dashboard"]:
             state["dashboard"].close()
-        tray.stop()
+        icon.stop()
         on_quit()
 
-    def _build_menu():
-        items = [
-            ("Show Dashboard", do_dashboard, True),
-            ("-", None, True),
-        ]
-        if state["running"]:
-            items.append(("Stop Server", do_stop, True))
-        else:
-            items.append(("Start Server", do_start, True))
-        items.append(("-", None, True))
-        items.append(("Quit", do_quit, True))
-        return items
+    def setup(icon):
+        icon.visible = True
+        if on_init:
+            on_init()
 
-    def on_right_click():
-        t = threading.Thread(target=lambda: _show_popup_menu(_build_menu()), daemon=True)
-        t.start()
-
-    tray = NativeTrayIcon(
-        on_left_click=do_dashboard,
-        on_right_click=on_right_click,
-    )
-
-    if on_init:
-        threading.Timer(0.5, on_init).start()
-
-    tray.start()
+    menu = _build_menu(state, do_dashboard, do_stop, do_start, do_quit)
+    icon = TrayIcon("PcRemote", image, menu=menu)
+    icon.run(setup)
     return True
+
+
+def _build_menu(state, do_dashboard, do_stop, do_start, do_quit):
+    from pystray import Menu, MenuItem
+    items = [
+        MenuItem("Show Dashboard", do_dashboard, default=True),
+        Menu.SEPARATOR,
+    ]
+    if state["running"]:
+        items.append(MenuItem("Stop Server", do_stop))
+    else:
+        items.append(MenuItem("Start Server", do_start))
+    items.append(Menu.SEPARATOR)
+    items.append(MenuItem("Quit", do_quit))
+    return Menu(*items)
