@@ -210,7 +210,7 @@ async def cleanup_stale_clients(connected_clients: dict, timeout: float = 30.0):
 
 class ServerInstance:
     def __init__(self, port, input_dev, volume_dev, auth_token, require_auth,
-                 qr_backend, local_ip, logger):
+                 qr_backend, local_ip, logger, auto_show_qr=True):
         self.port = port
         self.input_dev = input_dev
         self.volume_dev = volume_dev
@@ -219,6 +219,7 @@ class ServerInstance:
         self.qr_backend = qr_backend
         self.local_ip = local_ip
         self.logger = logger
+        self.auto_show_qr = auto_show_qr
         self._task = None
         self._stop_event = None
 
@@ -237,6 +238,9 @@ class ServerInstance:
         self.logger.info("  Protocol version: %d", PROTOCOL_VERSION)
         self.logger.info("  OS: %s", "Windows" if os.name == 'nt' else "Linux")
         self.logger.info("=" * 50)
+
+        if self.auto_show_qr:
+            self.qr_backend.display(token_url)
 
         if self.input_dev and hasattr(self.input_dev, 'start_ticker'):
             self.input_dev.start_ticker(asyncio.get_running_loop())
@@ -294,7 +298,7 @@ class AppController:
                 pass
             self.input_dev = None
 
-    def start_server(self):
+    def start_server(self, auto_show_qr=True):
         if self.server is not None:
             return
         self._create_backends()
@@ -302,6 +306,7 @@ class AppController:
             self.args.port, self.input_dev, self.volume_dev,
             self.auth_token, self.require_auth,
             self.qr_backend, self.ip, self.logger,
+            auto_show_qr=auto_show_qr,
         )
         self.server.start(self._loop)
         self.logger.info("Server started on %s:%d", self.ip, self.args.port)
@@ -371,10 +376,10 @@ class AppController:
         loop_thread.start()
 
         def on_init():
-            self._loop.call_soon_threadsafe(self.start_server)
+            self._loop.call_soon_threadsafe(self.start_server, auto_show_qr=False)
 
         def on_start():
-            self._loop.call_soon_threadsafe(self.start_server)
+            self._loop.call_soon_threadsafe(self.start_server, auto_show_qr=False)
 
         def on_stop():
             self._loop.call_soon_threadsafe(self.stop_server)
