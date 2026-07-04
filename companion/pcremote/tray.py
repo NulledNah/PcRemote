@@ -59,19 +59,20 @@ class DashboardWindow:
     def _create(self):
         import tkinter as tk
         import qrcode
-        from PIL import Image, ImageTk
+        from PIL import Image, ImageTk, ImageDraw
 
         BG = '#EBE0D3'
         ACCENT = '#7F5A49'
         ACCENT_DARK = '#6B493A'
         CREAM = '#FDF0D9'
         LOG_BG = '#3B2A22'
-        LOG_FG = '#EBE0D3'
+        LOG_FG = '#EBE0D9'
 
         self._root = tk.Tk()
         self._root.title("PcRemote Dashboard")
         self._root.configure(bg=BG)
         self._root.resizable(True, True)
+        self._root.minsize(400, 300)
         self._root.withdraw()
 
         icon_path = _find_icon_path()
@@ -83,11 +84,16 @@ class DashboardWindow:
 
         self._root.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        main_frame = tk.Frame(self._root, bg=BG)
-        main_frame.pack(padx=15, pady=15)
+        self._root.columnconfigure(0, weight=1)
+        self._root.rowconfigure(0, weight=1)
 
-        left_frame = tk.Frame(main_frame, bg=BG)
-        left_frame.pack(side=tk.LEFT)
+        outer = tk.Frame(self._root, bg=BG)
+        outer.grid(row=0, column=0, sticky='nsew', padx=15, pady=15)
+        outer.columnconfigure(1, weight=1)
+        outer.rowconfigure(0, weight=1)
+
+        left_frame = tk.Frame(outer, bg=BG)
+        left_frame.grid(row=0, column=0, sticky='nw')
 
         qr = qrcode.QRCode(box_size=6, border=3)
         qr.add_data(self._url)
@@ -106,14 +112,14 @@ class DashboardWindow:
         )
         url_label.pack(pady=(8, 0))
 
-        self._log_frame = tk.Frame(main_frame, bg=BG)
+        self._log_frame = tk.Frame(outer, bg=BG)
         scrollbar = tk.Scrollbar(self._log_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
         self._log_text = tk.Text(
-            self._log_frame, height=22, width=52,
+            self._log_frame,
             bg=LOG_BG, fg=LOG_FG,
-            font=("Consolas", 8),
+            font=("Consolas", 9),
             yscrollcommand=scrollbar.set,
             wrap=tk.WORD,
             insertbackground=LOG_FG,
@@ -124,37 +130,29 @@ class DashboardWindow:
         scrollbar.config(command=self._log_text.yview)
 
         bottom_frame = tk.Frame(self._root, bg=BG)
-        bottom_frame.pack(fill=tk.X, padx=15, pady=(0, 10))
+        bottom_frame.grid(row=1, column=0, sticky='ew', padx=15, pady=(0, 10))
 
-        switch_canvas = tk.Canvas(
-            bottom_frame, width=56, height=30,
-            bg=BG, highlightthickness=0
+        self._toggle_btn = tk.Button(
+            bottom_frame, text="Show Logs",
+            bg=ACCENT, fg=CREAM,
+            font=("Segoe UI", 10, "bold"),
+            relief=tk.FLAT,
+            activebackground=ACCENT_DARK,
+            activeforeground=CREAM,
+            cursor='hand2',
+            padx=16, pady=4,
+            borderwidth=0,
         )
-        switch_canvas.pack(side=tk.LEFT)
+        self._toggle_btn.pack(side=tk.LEFT)
 
-        def _draw_switch(on=False):
-            switch_canvas.delete("all")
-            if on:
-                _rounded_rect(switch_canvas, 0, 0, 56, 30, 15, fill=ACCENT, outline='')
-                switch_canvas.create_oval(28, 3, 54, 27, fill=CREAM, outline='')
-            else:
-                _rounded_rect(switch_canvas, 0, 0, 56, 30, 15, fill='#C4B5A8', outline='')
-                switch_canvas.create_oval(2, 3, 28, 27, fill=CREAM, outline='')
-
-        _draw_switch(False)
-
-        switch_label = tk.Label(
-            bottom_frame, text="  Show Logs", bg=BG, fg=ACCENT_DARK,
-            font=("Segoe UI", 10)
-        )
-        switch_label.pack(side=tk.LEFT)
-
-        def _on_switch_click(event):
+        def _on_toggle():
             self._logs_visible = not self._logs_visible
-            _draw_switch(self._logs_visible)
+            self._toggle_btn.configure(
+                text="Hide Logs" if self._logs_visible else "Show Logs"
+            )
             self._update_log_visibility()
 
-        switch_canvas.bind("<Button-1>", _on_switch_click)
+        self._toggle_btn.configure(command=_on_toggle)
 
         self._poll_logs()
         self._ready.set()
@@ -182,12 +180,11 @@ class DashboardWindow:
     def _update_log_visibility(self):
         if self._log_frame is None:
             return
-        import tkinter as tk
         if self._logs_visible:
-            self._log_frame.pack(side=tk.LEFT, padx=(15, 0))
+            self._log_frame.grid(row=0, column=1, sticky='nsew', padx=(15, 0))
             self._log_pos = 0
         else:
-            self._log_frame.pack_forget()
+            self._log_frame.grid_forget()
 
     def _on_close(self):
         self.hide()
@@ -235,18 +232,6 @@ class DashboardWindow:
                 self._root.destroy()
             except Exception:
                 pass
-
-
-def _rounded_rect(canvas, x1, y1, x2, y2, r, **kwargs):
-    points = [
-        x1 + r, y1, x2 - r, y1,
-        x2, y1, x2, y1 + r,
-        x2, y2 - r, x2, y2,
-        x2 - r, y2, x1 + r, y2,
-        x1, y2, x1, y2 - r,
-        x1, y1 + r, x1, y1,
-    ]
-    return canvas.create_polygon(points, smooth=True, **kwargs)
 
 
 def run_tray(on_stop_server, on_start_server, on_quit,
