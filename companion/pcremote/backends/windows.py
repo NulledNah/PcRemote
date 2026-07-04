@@ -62,9 +62,10 @@ class INPUT_UNION(ctypes.Union):
 
 
 class INPUT(ctypes.Structure):
+    _anonymous_ = ("u",)
     _fields_ = [
         ("type", wintypes.DWORD),
-        ("", INPUT_UNION),
+        ("u", INPUT_UNION),
     ]
 
 
