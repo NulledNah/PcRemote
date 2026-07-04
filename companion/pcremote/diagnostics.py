@@ -81,7 +81,7 @@ def _check_windows(results: dict, port: int, logger):
     try:
         from pycaw.pycaw import AudioUtilities
         devices = AudioUtilities.GetSpeakers()
-        if devices is not None:
+        if devices is not None and devices.EndpointVolume is not None:
             results["volume_backend"] = "core_audio"
             logger.info("  [OK] Volume control via Windows Core Audio API")
         else:

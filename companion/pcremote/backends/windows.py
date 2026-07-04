@@ -237,16 +237,21 @@ class WindowsVolumeBackend(VolumeBackend):
     def __init__(self):
         self._endpoint = None
         try:
-            import ctypes as _ct
-            from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
-            CLSCTX_ALL = 0x17
+            from pycaw.pycaw import AudioUtilities
             devices = AudioUtilities.GetSpeakers()
-            interface = devices.Activate(
-                IAudioEndpointVolume._iid_, CLSCTX_ALL, None
+            if devices is None:
+                raise RuntimeError("No audio output device found")
+            self._endpoint = devices.EndpointVolume
+            self._endpoint.GetMasterVolumeLevelScalar()
+            import logging
+            logging.getLogger("pcremote").debug(
+                "Windows Core Audio volume backend ready"
             )
-            self._endpoint = _ct.cast(interface, _ct.POINTER(IAudioEndpointVolume))
         except Exception:
-            self._endpoint = None
+            import logging
+            logging.getLogger("pcremote").warning(
+                "Core Audio init failed, falling back to media key volume"
+            )
 
     @property
     def supports_precise_volume(self) -> bool:

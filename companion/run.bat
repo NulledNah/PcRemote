@@ -31,7 +31,7 @@ if not exist "pcremote\" (
 )
 
 echo [INFO] Installing dependencies...
-pip install -r requirements.txt -r requirements-windows.txt --quiet
+pip install -r requirements.txt -r requirements-windows.txt
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to install dependencies.
     pause
