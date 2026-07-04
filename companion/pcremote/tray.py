@@ -14,6 +14,9 @@ def show_console():
             sys.stderr = open('CONOUT$', 'w', buffering=1)
             import logging
             logger = logging.getLogger("pcremote")
+            for h in list(logger.handlers):
+                if isinstance(h, logging.StreamHandler) and h.stream is not sys.stdout:
+                    logger.removeHandler(h)
             handler = logging.StreamHandler(sys.stdout)
             handler.setFormatter(logging.Formatter(
                 "%(asctime)s  %(levelname)-7s  %(message)s",
@@ -107,11 +110,11 @@ def _build_menu(state, do_console, do_stop, do_start, do_quit):
         items.append(MenuItem("Console (visible)", None, enabled=False))
     else:
         items.append(MenuItem("Show Console", do_console))
-    items.append(MenuItem.SEPARATOR)
+    items.append(Menu.SEPARATOR)
     if state["running"]:
         items.append(MenuItem("Stop Server", do_stop))
     else:
         items.append(MenuItem("Start Server", do_start))
-    items.append(MenuItem.SEPARATOR)
+    items.append(Menu.SEPARATOR)
     items.append(MenuItem("Quit", do_quit))
     return Menu(*items)

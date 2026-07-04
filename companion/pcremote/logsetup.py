@@ -22,10 +22,13 @@ def setup(level: int = logging.INFO) -> logging.Logger:
         "%(asctime)s  %(levelname)-7s  %(message)s",
         datefmt="%H:%M:%S",
     )
-    ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(level)
-    ch.setFormatter(console_fmt)
-    _logger.addHandler(ch)
+    try:
+        ch = logging.StreamHandler(sys.stdout)
+        ch.setLevel(level)
+        ch.setFormatter(console_fmt)
+        _logger.addHandler(ch)
+    except Exception:
+        pass
 
     try:
         log_dir = get_data_dir()
