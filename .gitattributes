@@ -1,0 +1,16 @@
+# Auto-detect text files and normalize line endings
+* text=auto
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.apk binary
+*.jar binary
+
+# Python sources
+*.py text eol=lf
+
+# Batch scripts (Windows CRLF)
+*.bat text eol=crlf

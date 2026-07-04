@@ -1,147 +1,146 @@
 # PcRemote
 
-Control your PC's mouse and keyboard from your Android phone over WiFi. Your phone becomes a trackpad + keyboard. No Bluetooth headaches, no PC installation — just a single Python script.
-
-**Cross-platform:** Works on Linux (Fedora 44, Wayland) and Windows (10/11). Uses the phone's keyboard layout natively (Italian tested, others should work too).
-
-> **v2 (experimental):** Windows support, authentication, heartbeat, system tray, GUI QR, diagnostics. See `v2-experimental-windows` branch.
-
-## Screenshots
-
-### Light mode
+Control your PC's mouse and keyboard from your Android phone over WiFi. Your phone becomes a trackpad + keyboard. No Bluetooth, no installation — just scan a QR code.
 
 <p align="center">
-  <img src="screenshots/screenshotLight3.jpeg" alt="Settings" width="30%">
-  <img src="screenshots/screenshotLight2.jpeg" alt="Trackpad + keyboard" width="30%">
-  <img src="screenshots/screenshotLight1.jpeg" alt="Connection screen" width="30%">
+  <img src="https://img.shields.io/badge/version-v2.0.0_experimental-%237F5A49" alt="Version">
+  <img src="https://img.shields.io/badge/Windows-10%2F11-%236B493A" alt="Windows">
+  <img src="https://img.shields.io/badge/Linux-Fedora%2FWayland-%236B493A" alt="Linux">
+  <img src="https://img.shields.io/badge/Android-8.0%2B-%236B493A" alt="Android">
 </p>
 
-### Dark mode
+---
 
-<p align="center">
-  <img src="screenshots/screenshotDark3.jpeg" alt="Settings dark" width="30%">
-  <img src="screenshots/screenshotDark2.jpeg" alt="Trackpad + keyboard dark" width="30%">
-  <img src="screenshots/screenshotDark1.jpeg" alt="Connection screen dark" width="30%">
-</p>
+## Quick start
 
-## How it works
+### Windows
+1. Download `PcRemoteServer.exe` from the [latest Release](https://github.com/nulledv2/PcRemote/releases)
+2. Double-click it — the server starts silently in your system tray
+3. Right-click the tray icon → **Show Dashboard** → scan the QR code with the Android app
 
-1. Run `server.py` on your PC — it starts a WebSocket server and shows a QR code
-2. Open the Android app, scan the QR or type the IP
-3. Your phone is now a trackpad and keyboard for the PC
+No Python required. The `.exe` bundles everything.
 
-Everything goes over your local WiFi. The companion script uses `uinput` to simulate input at the kernel level, so it works on both X11 and Wayland.
-
-## Features
-
-**Trackpad** (like a laptop touchpad):
-- Single finger swipe to move cursor (with acceleration)
-- Tap to click, two-finger tap to right-click, three-finger tap to middle-click
-- Two-finger vertical and horizontal scroll (direction and sensitivity adjustable)
-- Double-tap and hold to drag
-
-**Keyboard:**
-- Uses your phone's system keyboard — autocorrect, suggestions, everything
-- Extra keys bar with Ctrl, Alt, Super, Esc, Tab, arrows, F1-F12
-- Modifier keys work as toggles (Termux-style)
-
-**Quality of life:**
-- App stays connected in background with a notification
-- "Spegni" button in notification to disconnect
-- QR code scan for zero-typing connection
-- Remembers last connection, no need to rescan
-- Autocorrect toggle in settings
-- Scroll sensitivity and invert scroll settings
-
-## Requirements
-
-**PC (Linux):**
-- Python 3
-- `websockets`, `evdev`, `qrcode`, `pillow` (install with `pip install -r requirements.txt`)
-- `qrencode` (optional, for QR code in terminal, `dnf install qrencode` on Fedora)
-- `uinput` kernel module loaded (`sudo modprobe uinput`)
-- Your user must be in the `input` group for uinput:
-  ```bash
-  sudo usermod -aG input $USER
-  # log out and back in
-  ```
-
-**PC (Windows):**
-- Windows 10 or 11
-- Python 3 (or use the standalone `.exe`)
-- Run `run.bat` to auto-install dependencies and start the server
-- Optional: run `build.py` to create `PcRemoteServer.exe`
-
-**Phone:**
-- Android 8.0 or newer
-
-## Setup
-
-### PC (companion script)
-
+### Linux
 ```bash
 git clone https://github.com/nulledv2/PcRemote.git
 cd PcRemote/companion
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-linux.txt
 python3 server.py
 ```
 
-On Windows, double-click `run.bat` to auto-install and start. Or build an `.exe`:
-```bash
-python build.py        # creates dist/PcRemoteServer.exe
-start_tray.bat         # launches the .exe minimized to system tray
-```
+---
 
-The server prints your IP, port, auth token, and a QR code (GUI window on Windows, terminal on Linux). Scan the QR with the Android app to connect instantly.
+## Features
 
-### Phone (Android app)
+**v2 (current — `v2` branch):**
 
-Install the APK from `android/app/build/outputs/apk/debug/app-debug.apk`, or build it yourself:
+| Feature | Windows | Linux |
+|---|---|---|
+| System tray with dashboard | ✓ | — |
+| QR code on demand (dashboard) | ✓ | ✓ (terminal) |
+| Adaptive mouse flush (2ms) | ✓ | ✓ |
+| Volume sync (Core Audio / PulseAudio) | ✓ | ✓ |
+| Structured logging (file) | ✓ | ✓ |
+| Diagnostic wizard (firewall, port) | ✓ | ✓ |
+| Standalone `.exe` build | ✓ | — |
 
-- You need Android SDK 35 and JDK 21
-- `./gradlew assembleDebug` in the `android/` directory
+**v1 (stable — `main` branch):**
+
+| Feature | Linux |
+|---|---|
+| Terminal-based server | ✓ |
+| Trackpad + keyboard | ✓ |
+| QR code (qrencode) | ✓ |
+| Volume control (pactl) | ✓ |
+
+---
+
+## How it works
+
+1. Run the server on your PC — it starts a WebSocket server on your local network
+2. Open the Android app, scan the QR code from the dashboard
+3. Your phone is now a trackpad and keyboard for the PC
+
+Everything goes over your local WiFi. On Linux the server uses `uinput` for kernel-level input simulation. On Windows it uses Win32 `SendInput`.
+
+---
+
+## Requirements
+
+| | Linux | Windows |
+|---|---|---|
+| **Python** | 3.x | Not needed (`.exe` bundles it) |
+| **Dependencies** | `pip install -r requirements.txt -r requirements-linux.txt` | Bundled in `.exe` |
+| **uinput** | `sudo modprobe uinput` + `input` group | N/A |
+| **Firewall** | Typically open | Auto-fixed or manual rule |
+
+**Phone:** Android 8.0+ with PcRemote APK installed.
+
+---
 
 ## Project structure
 
 ```
 PcRemote/
 ├── companion/
-│   ├── server.py              # Entry point - WebSocket server + input simulation
-│   ├── run.bat                # Windows: auto-install deps + start
-│   ├── build.py               # PyInstaller build script
-│   ├── requirements.txt
+│   ├── server.py              # Entry point
+│   ├── run.bat                # Windows launcher
+│   ├── build.py               # PyInstaller build
+│   ├── requirements.txt        # Common deps
+│   ├── requirements-linux.txt  # Linux-only (evdev)
+│   ├── requirements-windows.txt # Windows-only (pycaw, pystray)
+│   ├── icon.ico               # App icon
 │   └── pcremote/              # Backend package
-│       ├── __init__.py
 │       ├── backends/
 │       │   ├── base.py        # Abstract backends
-│       │   ├── linux.py       # Linux uinput + pactl
-│       │   ├── windows.py     # Windows SendInput + media keys
-│       │   └── qr.py          # Cross-platform QR code
+│       │   ├── linux.py       # uinput + pactl
+│       │   ├── windows.py     # SendInput + Core Audio
+│       │   └── qr.py          # QR code (tkinter/PIL)
 │       ├── protocol.py        # WebSocket message types
-│       ├── config.py          # Persistent config (%APPDATA% / ~/.config)
-│       ├── logsetup.py        # Structured logging (console + file)
-│       ├── diagnostics.py     # Startup health checks
-│       └── tray.py            # Windows system tray support
+│       ├── config.py          # Persistent settings
+│       ├── logsetup.py        # Structured logging
+│       ├── diagnostics.py     # Startup checks
+│       └── tray.py            # Windows tray + dashboard
 ├── android/                   # Android app (Kotlin + Jetpack Compose)
-│   └── ...
 └── app icon/
-    └── icon.png
 ```
 
-## Keyboard layout
+---
 
-The server has a full Italian keyboard layout map. When you type on your phone, characters get mapped to the correct physical key positions for an Italian keyboard. If you use a different layout you might need to tweak the `ITALIAN_CHAR_MAP` dictionary in `server.py` — it's just a dict from characters to `(keycode, shift, altgr)` tuples.
+## Building from source
+
+```bash
+# Windows
+cd companion
+pip install -r requirements.txt -r requirements-windows.txt pyinstaller
+python build.py                    # → dist/PcRemoteServer.exe
+
+# Linux
+cd companion
+pip install -r requirements.txt -r requirements-linux.txt
+python3 server.py                  # run directly
+```
+
+---
+
+## Branches
+
+| Branch | Status | Description |
+|---|---|---|
+| `main` | Stable v1.x | Linux-only, proven on Fedora 44 |
+| `v2` | Experimental v2.0 | Cross-platform (Windows + Linux) |
+
+---
 
 ## Notes
 
-- The app needs a foreground service to stay connected when you switch apps. You'll see a persistent notification while connected.
-- First run on Android 13+ will ask for notification permission — that's for the connection notification.
-- QR scanning needs camera permission.
-- The `uinput` devices take a few seconds to initialize on some kernels (Fedora's being one of them). Just wait for the "Server running" message.
-- Tested on Samsung A56 5G with Fedora 44 Workstation and Windows 11. Your mileage may vary with other setups.
+- First run on Android 13+ asks for notification permission (for the connection notification)
+- `uinput` devices take a few seconds to initialize on some kernels
+- Windows Firewall may prompt on first run — the diagnostic wizard auto-fixes it
+- Running as Administrator on Windows may prevent SendInput from working — run as normal user
 
-### Windows-specific
-- Launch with `--tray` to start minimized in the system tray (requires `pystray` and `pillow`)
-- Windows Firewall may block the port on first run — the diagnostic wizard will try to auto-fix it
-- If running as Administrator, SendInput may silently fail — run as a normal user
-- Unicode characters use `KEYEVENTF_UNICODE` — all characters work regardless of keyboard layout
+---
+
+## License
+
+MIT

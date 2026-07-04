@@ -1,0 +1,55 @@
+name: Bug Report
+description: Report a problem with PcRemote
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    attributes:
+      label: Describe the bug
+      description: A clear description of what went wrong.
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: OS
+      placeholder: e.g. Windows 11, Fedora 44
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: PcRemote version
+      placeholder: e.g. v2.0.0-experimental, or commit hash
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: How installed
+      options:
+        - Standalone .exe
+        - Python script
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Phone model and Android version
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      description: |
+        1. Start server with...
+        2. Connect from phone...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Logs
+      description: Run with `--debug` and attach the output or the log file from `%APPDATA%\PcRemote\` (Windows) / `~/.config/pcremote/` (Linux).
+      render: shell
