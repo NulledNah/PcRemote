@@ -14,7 +14,7 @@ Control your PC's mouse and keyboard from your Android phone over WiFi. Your pho
 ## Quick start
 
 ### Windows
-1. Download `PcRemoteServer.exe` from the [latest Release](https://github.com/nulledv2/PcRemote/releases)
+1. Download `PcRemoteServer.exe` from the [latest Release](https://github.com/NulledNah/PcRemote/releases)
 2. Double-click it — the server starts silently in your system tray
 3. Right-click the tray icon → **Show Dashboard** → scan the QR code with the Android app
 
