@@ -62,22 +62,40 @@ class PythonQrcodeBackend(QrBackend):
         return False
 
     def _display_image(self, data: str) -> bool:
+        path = None
         try:
             import qrcode
             from PIL import Image
-            img = qrcode.make(data)
-            img = img.resize((320, 320), Image.NEAREST)
+            qr = qrcode.QRCode(box_size=12, border=4)
+            qr.add_data(data)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            w, h = img.size
+            img = img.resize((w * 2, h * 2), Image.NEAREST)
             fd, path = tempfile.mkstemp(suffix='.png', prefix='pcremote_qr_')
             os.close(fd)
             img.save(path, format='PNG')
+        except Exception:
+            return False
+
+        opened = False
+        try:
             if os.name == 'nt':
                 os.startfile(path)
             else:
-                subprocess.Popen(['xdg-open', path])
-            print(f"  QR code image opened. Connect to: {data}")
-            return True
+                subprocess.Popen(['xdg-open', path],
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            opened = True
         except Exception:
-            return False
+            pass
+
+        print()
+        if opened:
+            print(f"  QR image opened. Connect to: {data}")
+        else:
+            print(f"  QR saved to: {path}")
+            print(f"  Connect to: {data}")
+        return True
 
 
 class FallbackQrBackend(QrBackend):
