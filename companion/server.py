@@ -374,7 +374,8 @@ class AppController:
         loop_thread = threading.Thread(target=_run_loop, daemon=True)
         loop_thread.start()
 
-        self.start_server()
+        def on_init():
+            self._loop.call_soon_threadsafe(self.start_server)
 
         def on_start():
             self._loop.call_soon_threadsafe(self.start_server)
@@ -389,7 +390,7 @@ class AppController:
 
         try:
             run_tray(on_stop, on_start, on_quit,
-                     on_show_console=show_console)
+                     on_show_console=show_console, on_init=on_init)
         except KeyboardInterrupt:
             self.logger.info("Shutting down...")
         finally:

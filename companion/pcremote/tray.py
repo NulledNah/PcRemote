@@ -1,29 +1,87 @@
 import ctypes
 import os
 import sys
+from datetime import datetime
 
 
-def show_console():
-    if os.name != 'nt':
+_CONSOLE_ALLOCATED = False
+
+
+def _ctrl_handler(ctrl_type):
+    if ctrl_type == 2:
+        _detach_console()
+        return True
+    return False
+
+
+def _detach_console():
+    global _CONSOLE_ALLOCATED
+    if not _CONSOLE_ALLOCATED:
         return
     try:
         kernel32 = ctypes.windll.kernel32
-        if kernel32.AllocConsole():
-            kernel32.SetConsoleTitleW("PcRemote Server")
-            sys.stdout = open('CONOUT$', 'w', buffering=1)
-            sys.stderr = open('CONOUT$', 'w', buffering=1)
-            import logging
-            logger = logging.getLogger("pcremote")
-            for h in list(logger.handlers):
-                if isinstance(h, logging.StreamHandler) and h.stream is not sys.stdout:
-                    logger.removeHandler(h)
-            handler = logging.StreamHandler(sys.stdout)
-            handler.setFormatter(logging.Formatter(
-                "%(asctime)s  %(levelname)-7s  %(message)s",
-                datefmt="%H:%M:%S",
-            ))
-            logger.addHandler(handler)
-            logger.info("Console attached - live log streaming")
+        sys.stdout.flush()
+        sys.stderr.flush()
+        sys.stdout = open(os.devnull, 'w')
+        sys.stderr = open(os.devnull, 'w')
+        import logging
+        logger = logging.getLogger("pcremote")
+        for h in list(logger.handlers):
+            if isinstance(h, logging.StreamHandler):
+                logger.removeHandler(h)
+        kernel32.FreeConsole()
+        _CONSOLE_ALLOCATED = False
+    except Exception:
+        pass
+
+
+def show_console():
+    global _CONSOLE_ALLOCATED
+    if os.name != 'nt':
+        return
+
+    if _CONSOLE_ALLOCATED:
+        _detach_console()
+
+    try:
+        kernel32 = ctypes.windll.kernel32
+        if not kernel32.AllocConsole():
+            return
+        _CONSOLE_ALLOCATED = True
+
+        kernel32.SetConsoleTitleW("PcRemote Server")
+        kernel32.SetConsoleCtrlHandler(
+            ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_ulong)(_ctrl_handler), True
+        )
+
+        sys.stdout = open('CONOUT$', 'w', buffering=1)
+        sys.stderr = open('CONOUT$', 'w', buffering=1)
+
+        import logging
+        from .config import get_data_dir
+        logger = logging.getLogger("pcremote")
+        for h in list(logger.handlers):
+            if isinstance(h, logging.StreamHandler):
+                logger.removeHandler(h)
+
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(logging.Formatter(
+            "%(asctime)s  %(levelname)-7s  %(message)s",
+            datefmt="%H:%M:%S",
+        ))
+        logger.addHandler(handler)
+
+        log_file = os.path.join(get_data_dir(),
+                                f"pcremote-{datetime.now():%Y%m%d}.log")
+        if os.path.isfile(log_file):
+            try:
+                with open(log_file, 'r', encoding='utf-8') as f:
+                    sys.stdout.write(f.read())
+                    sys.stdout.flush()
+            except Exception:
+                pass
+
+        logger.info("--- Console attached, live log streaming ---")
     except Exception:
         pass
 
@@ -56,7 +114,8 @@ def _load_image():
     return img
 
 
-def run_tray(on_stop_server, on_start_server, on_quit, on_show_console=None):
+def run_tray(on_stop_server, on_start_server, on_quit,
+             on_show_console=None, on_init=None):
     if os.name != 'nt':
         return False
 
@@ -91,15 +150,23 @@ def run_tray(on_stop_server, on_start_server, on_quit, on_show_console=None):
             icon.update_menu()
 
     def do_quit(icon, item):
+        global _CONSOLE_ALLOCATED
         if state["running"]:
             on_stop_server()
             state["running"] = False
         icon.stop()
+        if _CONSOLE_ALLOCATED:
+            _detach_console()
         on_quit()
+
+    def setup(icon):
+        icon.visible = True
+        if on_init:
+            on_init()
 
     menu = _build_menu(state, do_console, do_stop, do_start, do_quit)
     icon = TrayIcon("PcRemote", image, menu=menu)
-    icon.run(setup=lambda i: setattr(i, 'visible', True))
+    icon.run(setup)
     return True
 
 
