@@ -7,6 +7,6 @@
     </MappedFolder>
   </MappedFolders>
   <LogonCommand>
-    <Command>cmd /c start cmd /k "cd /d C:\PcRemote && PcRemoteServer.exe --port 9876"</Command>
+    <Command>cmd.exe /k C:\PcRemote\PcRemoteServer.exe --port 9876</Command>
   </LogonCommand>
 </Configuration>
