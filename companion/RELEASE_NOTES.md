@@ -1,6 +1,6 @@
-## PcRemote v2.0.0-experimental
+## PcRemote v2.0.0 (stable)
 
-First cross-platform release. Windows support with native system tray, dashboard, and standalone `.exe`.
+First cross-platform release. Windows support with native system tray, dashboard, and standalone `.exe`. Linux support preserved from v1.
 
 ### What's new
 
@@ -37,11 +37,10 @@ PcRemoteServer.exe
 
 ### Known limitations
 
-- Android app is still v1 protocol (no auth, no ping/pong) — server accepts connections without auth by default
 - Dashboard uses tkinter (included in exe, no extra install)
 - System tray requires pystray + PIL (bundled in exe)
 - Windows Defender may flag the unsigned `.exe` — this is a false positive common to all PyInstaller-built executables
 
 ---
 
-**Full Changelog**: https://github.com/nulledv2/PcRemote/compare/main...v2
+**Full Changelog**: https://github.com/NulledNah/PcRemote/compare/main...v2

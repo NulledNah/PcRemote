@@ -1,2 +1,2 @@
-VERSION = "2.0.0-experimental"
+VERSION = "2.0.0"
 PROTOCOL_VERSION = 2

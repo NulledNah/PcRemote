@@ -14,8 +14,8 @@ Control your PC's mouse and keyboard from your Android phone over WiFi. Your pho
 ## Quick start
 
 ### Windows
-1. Download `PcRemoteServer.exe` from the [latest Release](https://github.com/NulledNah/PcRemote/releases)
-2. Double-click it — the server starts silently in your system tray
+1. Download `PcRemoteServer.exe` from the [latest Release](https://github.com/NulledNah/PcRemote/releases/latest)
+2. Double-click it — accept the UAC prompt to add the firewall rule
 3. Right-click the tray icon → **Show Dashboard** → scan the QR code with the Android app
 
 No Python required. The `.exe` bundles everything.
@@ -35,7 +35,7 @@ python3 server.py
 
 ## Features
 
-**v2 (current — `v2` branch):**
+**v2 (stable):**
 
 | Feature | Windows | Linux |
 |---|---|---|
@@ -47,7 +47,7 @@ python3 server.py
 | Diagnostic wizard (firewall, port) | ✓ | ✓ |
 | Standalone `.exe` build | ✓ | — |
 
-**v1 (stable — `main` branch):**
+**v1 (legacy — `main` branch):**
 
 | Feature | Linux |
 |---|---|
@@ -130,17 +130,18 @@ python3 server.py                  # run directly
 
 | Branch | Status | Description |
 |---|---|---|
-| `main` | Stable v1.x | Linux-only, proven on Fedora 44 |
-| `v2` | Experimental v2.0 | Cross-platform (Windows + Linux) |
+| `v2` | Stable v2.0 | Cross-platform (Windows + Linux) |
+| `main` | Legacy v1.x | Linux-only, proven on Fedora 44 |
 
 ---
 
 ## Notes
 
 - First run on Android 13+ asks for notification permission (for the connection notification)
+- First run on Windows shows a UAC prompt to add the firewall rule — accept it
 - `uinput` devices take a few seconds to initialize on some kernels
-- Windows Firewall may prompt on first run — the diagnostic wizard auto-fixes it
 - Running as Administrator on Windows may prevent SendInput from working — run as normal user
+- On Linux, ensure your user is in the `input` group: `sudo usermod -aG input $USER`
 
 ---
 
