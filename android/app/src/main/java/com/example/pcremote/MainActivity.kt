@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
                 val observer = LifecycleEventObserver { _, event ->
                     when (event) {
                         Lifecycle.Event.ON_START -> viewModel.bindService(this@MainActivity)
-                        Lifecycle.Event.ON_STOP -> viewModel.unbindService(this@MainActivity)
+                        Lifecycle.Event.ON_DESTROY -> viewModel.unbindService(this@MainActivity)
                         else -> {}
                     }
                 }

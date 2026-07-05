@@ -378,10 +378,10 @@ class AppController:
         loop_thread.start()
 
         def on_init():
-            self._loop.call_soon_threadsafe(self.start_server, auto_show_qr=False)
+            self._loop.call_soon_threadsafe(lambda: self.start_server(auto_show_qr=False))
 
         def on_start():
-            self._loop.call_soon_threadsafe(self.start_server, auto_show_qr=False)
+            self._loop.call_soon_threadsafe(lambda: self.start_server(auto_show_qr=False))
 
         def on_stop():
             self._loop.call_soon_threadsafe(self.stop_server)
@@ -397,6 +397,8 @@ class AppController:
                      get_connection_url=self.get_connection_url)
         except KeyboardInterrupt:
             self.logger.info("Shutting down...")
+        except Exception as e:
+            self.logger.error("Tray mode failed: %s", e, exc_info=True)
         finally:
             self.stop_server()
             self._loop.call_soon_threadsafe(self._loop.stop)
