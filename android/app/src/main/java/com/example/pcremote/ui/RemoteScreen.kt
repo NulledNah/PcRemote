@@ -20,6 +20,12 @@ fun RemoteScreen(
 ) {
     var showSettings by remember { mutableStateOf(false) }
 
+    LaunchedEffect(viewModel.isConnected) {
+        if (!viewModel.isConnected) {
+            onDisconnect()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()

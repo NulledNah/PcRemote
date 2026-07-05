@@ -219,7 +219,7 @@ fun ConnectionScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
@@ -232,31 +232,34 @@ fun ConnectionScreen(
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             OutlinedButton(
                                 onClick = onDisconnect,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
                             ) {
-                                Text("Disconnect")
+                                Text("Disconnect", maxLines = 1, fontSize = 13.sp)
                             }
                             OutlinedButton(
                                 onClick = {
                                     saveName = "PC at $host"
                                     showSaveDialog = true
                                 },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
                             ) {
-                                Text("Save")
+                                Text("Save", maxLines = 1, fontSize = 13.sp)
                             }
                             Button(
                                 onClick = onContinue,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
                             ) {
-                                Text("Control PC")
+                                Text("Control PC", maxLines = 1, fontSize = 13.sp)
                             }
                         }
                     }

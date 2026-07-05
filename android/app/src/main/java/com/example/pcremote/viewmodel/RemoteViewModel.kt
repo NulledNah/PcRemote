@@ -51,7 +51,7 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     init {
         savedHost = prefs.getString("saved_host", "") ?: ""
         savedPort = prefs.getString("saved_port", "") ?: ""
-        isDarkMode = prefs.getBoolean("dark_mode", false)
+        isDarkMode = prefs.getBoolean("dark_mode", true)
         favorites = favoriteRepo.loadFavorites()
     }
 

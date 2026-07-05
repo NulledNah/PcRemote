@@ -44,12 +44,12 @@ class ConnectionService : Service() {
         }
         webSocketManager.onDisconnected = {
             isConnected = false
-            hideNotification()
+            Handler(Looper.getMainLooper()).post { hideNotification() }
             onDisconnected?.invoke()
         }
         webSocketManager.onError = { msg ->
             isConnected = false
-            hideNotification()
+            Handler(Looper.getMainLooper()).post { hideNotification() }
             onError?.invoke(msg)
         }
         webSocketManager.onMessage = { text ->

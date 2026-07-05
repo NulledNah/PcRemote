@@ -51,7 +51,7 @@ class DashboardWindow:
         self._url = connection_url
         self._server_running = server_running
         self._toggle_server_callback = on_toggle_server
-        self._dark_mode = False
+        self._dark_mode = True
         self._root = None
         self._ready = threading.Event()
         self._show_event = threading.Event()
@@ -279,7 +279,7 @@ class DashboardWindow:
 
         self._qr_label = tk.Label(
             self._qr_frame,
-            image=self._qr_light, bg=c['cream']
+            image=self._qr_dark, bg=c['cream']
         )
         self._qr_label.pack()
 
@@ -315,7 +315,7 @@ class DashboardWindow:
         self._bottom_frame.grid(row=2, column=0, sticky='ew', pady=(10, 0))
 
         self._dark_btn = tk.Button(
-            self._bottom_frame, text="Dark Mode",
+            self._bottom_frame, text="Light Mode",
             bg=c['btn_bg'], fg=c['btn_fg'],
             font=("Segoe UI", 10, "bold"),
             relief=tk.FLAT,
@@ -414,8 +414,8 @@ class DashboardWindow:
             self._clear_btn.pack(side=tk.LEFT, padx=(8, 0))
             self._copy_btn.pack(side=tk.LEFT, padx=(4, 0))
             self._root.update_idletasks()
-            self._root.minsize(1020, 420)
-            self._root.geometry("1020x420")
+            self._root.minsize(1275, 420)
+            self._root.geometry("1275x420")
         else:
             self._qr_frame.grid(row=0, column=0, sticky='')
             self._content_frame.columnconfigure(0, weight=1)
