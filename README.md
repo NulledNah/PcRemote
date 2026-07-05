@@ -1,149 +1,52 @@
 # PcRemote
 
-Control your PC's mouse and keyboard from your Android phone over WiFi. Your phone becomes a trackpad + keyboard. No Bluetooth, no installation — just scan a QR code.
+Use your Android phone as a trackpad and keyboard for your PC over WiFi.
+Scan a QR code and you're connected. No Bluetooth, no cables.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v2.0.0-%237F5A49" alt="Version">
-  <img src="https://img.shields.io/badge/Windows-10%2F11-%236B493A" alt="Windows">
-  <img src="https://img.shields.io/badge/Linux-Fedora%2FWayland-%236B493A" alt="Linux">
-  <img src="https://img.shields.io/badge/Android-8.0%2B-%236B493A" alt="Android">
+  <img src="screenshots/dashboard.png" width="420" alt="Desktop dashboard with QR code"><br><br>
+  <img src="screenshots/light-1.jpeg" width="140" alt="Light theme">
+  <img src="screenshots/light-2.jpeg" width="140" alt="Light theme">
+  <img src="screenshots/light-3.jpeg" width="140" alt="Light theme"><br>
+  <img src="screenshots/dark-1.jpeg" width="140" alt="Dark theme">
+  <img src="screenshots/dark-2.jpeg" width="140" alt="Dark theme">
+  <img src="screenshots/dark-3.jpeg" width="140" alt="Dark theme">
 </p>
 
----
+## Features
+
+- Trackpad with adjustable sensitivity and scroll
+- Full keyboard (letters, F-keys, media keys, modifiers)
+- Real-time volume sync with PC
+- QR code pairing -- no passwords, no IP typing
+- Windows: system tray, standalone .exe, no Python required
+- Linux: uinput + PulseAudio
+- Dark and light themes
 
 ## Quick start
 
-### Windows
-1. Download `PcRemoteServer.exe` from the [latest Release](https://github.com/NulledNah/PcRemote/releases/latest)
-2. Double-click it — accept the UAC prompt to add the firewall rule
-3. Right-click the tray icon → **Show Dashboard** → scan the QR code with the Android app
+Download `PcRemoteServer.exe` from [Releases](https://github.com/NulledNah/PcRemote/releases/latest),
+double-click, accept the UAC prompt, right-click the tray icon and select Show Dashboard.
+Scan the QR code with the Android app.
 
-No Python required. The `.exe` bundles everything.
+## Linux
 
-### Linux
-```bash
+```
 git clone https://github.com/NulledNah/PcRemote.git
 cd PcRemote/companion
-# Fedora: sudo dnf install -y kernel-headers
-# Ubuntu/Debian: sudo apt install -y linux-headers-$(uname -r)
 sudo modprobe uinput
 pip install -r requirements.txt -r requirements-linux.txt
 python3 server.py
 ```
 
----
+## Android
 
-## Features
-
-**v2 (stable):**
-
-| Feature | Windows | Linux |
-|---|---|---|
-| System tray with dashboard | ✓ | — |
-| QR code on demand (dashboard) | ✓ | ✓ (terminal) |
-| Adaptive mouse flush (2ms) | ✓ | ✓ |
-| Volume sync (Core Audio / PulseAudio) | ✓ | ✓ |
-| Structured logging (file) | ✓ | ✓ |
-| Diagnostic wizard (firewall, port) | ✓ | ✓ |
-| Standalone `.exe` build | ✓ | — |
-
-**v1 (legacy — `main` branch):**
-
-| Feature | Linux |
-|---|---|
-| Terminal-based server | ✓ |
-| Trackpad + keyboard | ✓ |
-| QR code (qrencode) | ✓ |
-| Volume control (pactl) | ✓ |
-
----
-
-## How it works
-
-1. Run the server on your PC — it starts a WebSocket server on your local network
-2. Open the Android app, scan the QR code from the dashboard
-3. Your phone is now a trackpad and keyboard for the PC
-
-Everything goes over your local WiFi. On Linux the server uses `uinput` for kernel-level input simulation. On Windows it uses Win32 `SendInput`.
-
----
-
-## Requirements
-
-| | Linux | Windows |
-|---|---|---|
-| **Python** | 3.x | Not needed (`.exe` bundles it) |
-| **Dependencies** | `pip install -r requirements.txt -r requirements-linux.txt` | Bundled in `.exe` |
-| **uinput** | `sudo modprobe uinput` + `input` group | N/A |
-| **Firewall** | Typically open | Auto-fixed or manual rule |
-
-**Phone:** Android 8.0+ with PcRemote APK installed.
-
----
-
-## Project structure
-
-```
-PcRemote/
-├── companion/
-│   ├── server.py              # Entry point
-│   ├── run.bat                # Windows launcher
-│   ├── build.py               # PyInstaller build
-│   ├── requirements.txt        # Common deps
-│   ├── requirements-linux.txt  # Linux-only (evdev)
-│   ├── requirements-windows.txt # Windows-only (pycaw, pystray)
-│   ├── icon.ico               # App icon
-│   └── pcremote/              # Backend package
-│       ├── backends/
-│       │   ├── base.py        # Abstract backends
-│       │   ├── linux.py       # uinput + pactl
-│       │   ├── windows.py     # SendInput + Core Audio
-│       │   └── qr.py          # QR code (tkinter/PIL)
-│       ├── protocol.py        # WebSocket message types
-│       ├── config.py          # Persistent settings
-│       ├── logsetup.py        # Structured logging
-│       ├── diagnostics.py     # Startup checks
-│       └── tray.py            # Windows tray + dashboard
-├── android/                   # Android app (Kotlin + Jetpack Compose)
-└── app icon/
-```
-
----
+Install the APK from [Releases](https://github.com/NulledNah/PcRemote/releases/latest)
+or build from source (see [CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ## Building from source
 
-```bash
-# Windows
-cd companion
-pip install -r requirements.txt -r requirements-windows.txt pyinstaller
-python build.py                    # → dist/PcRemoteServer.exe
-
-# Linux
-cd companion
-pip install -r requirements.txt -r requirements-linux.txt
-python3 server.py                  # run directly
-```
-
----
-
-## Branches
-
-| Branch | Status | Description |
-|---|---|---|
-| `v2` | Stable v2.0 | Cross-platform (Windows + Linux) |
-| `main` | Legacy v1.x | Linux-only, proven on Fedora 44 |
-
----
-
-## Notes
-
-- First run on Android 13+ asks for notification permission (for the connection notification)
-- First run on Windows shows a UAC prompt to add the firewall rule — accept it
-- `uinput` devices take a few seconds to initialize on some kernels
-- Running as Administrator on Windows may prevent SendInput from working — run as normal user
-- On Linux, ensure your user is in the `input` group: `sudo usermod -aG input $USER`
-
----
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions, project structure, and protocol reference.
 
 ## License
 
