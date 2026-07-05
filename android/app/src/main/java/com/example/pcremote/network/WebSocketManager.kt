@@ -8,7 +8,6 @@ class WebSocketManager {
 
     private val client: OkHttpClient = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS)
-        .pingInterval(8, TimeUnit.SECONDS)
         .build()
 
     private var webSocket: WebSocket? = null

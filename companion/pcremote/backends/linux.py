@@ -1,5 +1,7 @@
 import subprocess
 import re
+import queue
+import threading
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
 
@@ -209,24 +211,47 @@ class LinuxUinputBackend(InputBackend):
             self.kbd = kbd_future.result()
             self.mouse = mouse_future.result()
 
-        self.modifiers_pressed = set()
+        self._queue = queue.Queue()
+        self._worker = threading.Thread(target=self._worker_loop, daemon=True)
+        self._worker.start()
+
+    def _worker_loop(self):
+        while True:
+            job = self._queue.get()
+            if job is None:
+                break
+            try:
+                job()
+            except Exception:
+                pass
 
     def close(self):
+        self._queue.put(None)
+        self._worker.join(timeout=2)
         self.kbd.close()
         self.mouse.close()
+
+    def _write_key(self, code, value):
+        self.kbd.write(ecodes.EV_KEY, code, value)
+        self.kbd.syn()
 
     def key(self, name: str, action: str):
         code = resolve_key(name)
         if code is None:
             return
         value = 1 if action == "down" else 0
-        self.kbd.write(ecodes.EV_KEY, code, value)
-        self.kbd.syn()
+        self._queue.put(lambda c=code, v=value: self._write_key(c, v))
 
     def mouse_move(self, dx: float, dy: float):
-        self.mouse.write(ecodes.EV_REL, ecodes.REL_X, int(dx))
-        self.mouse.write(ecodes.EV_REL, ecodes.REL_Y, int(dy))
-        self.mouse.syn()
+        ix = int(dx)
+        iy = int(dy)
+        if ix == 0 and iy == 0:
+            return
+        self._queue.put(lambda: (
+            self.mouse.write(ecodes.EV_REL, ecodes.REL_X, ix),
+            self.mouse.write(ecodes.EV_REL, ecodes.REL_Y, iy),
+            self.mouse.syn(),
+        ))
 
     def mouse_button(self, button: str, action: str):
         btn_map = {"left": ecodes.BTN_LEFT, "right": ecodes.BTN_RIGHT, "middle": ecodes.BTN_MIDDLE}
@@ -234,18 +259,32 @@ class LinuxUinputBackend(InputBackend):
         if code is None:
             return
         value = 1 if action == "down" else 0
-        self.mouse.write(ecodes.EV_KEY, code, value)
-        self.mouse.syn()
+        self._queue.put(lambda c=code, v=value: (
+            self.mouse.write(ecodes.EV_KEY, c, v),
+            self.mouse.syn(),
+        ))
 
     def mouse_scroll(self, dx: float, dy: float):
+        ix = int(dx)
+        iy = int(dy)
+        if ix == 0 and iy == 0:
+            return
+        self._queue.put(lambda x=ix, y=iy: self._scroll_impl(x, y))
+
+    def _scroll_impl(self, dx: int, dy: int):
         if dy != 0:
-            self.mouse.write(ecodes.EV_REL, ecodes.REL_WHEEL, int(dy))
+            self.mouse.write(ecodes.EV_REL, ecodes.REL_WHEEL, dy)
             self.mouse.syn()
         if dx != 0:
-            self.mouse.write(ecodes.EV_REL, ecodes.REL_HWHEEL, int(dx))
+            self.mouse.write(ecodes.EV_REL, ecodes.REL_HWHEEL, dx)
             self.mouse.syn()
 
     def type_text(self, text: str):
+        if not text:
+            return
+        self._queue.put(lambda t=text: self._type_text_impl(t))
+
+    def _type_text_impl(self, text: str):
         for ch in text:
             entry = ITALIAN_CHAR_MAP.get(ch)
             if entry is None:

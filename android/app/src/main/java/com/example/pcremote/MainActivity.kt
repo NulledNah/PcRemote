@@ -19,9 +19,9 @@ import com.example.pcremote.ui.ConnectionScreen
 import com.example.pcremote.ui.PCRemoteTheme
 import com.example.pcremote.ui.RemoteScreen
 import com.example.pcremote.viewmodel.RemoteViewModel
-import com.google.android.gms.code.scanner.GmsBarcodeScanner
-import com.google.android.gms.code.scanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 
 class MainActivity : ComponentActivity() {
 
@@ -36,7 +36,7 @@ class MainActivity : ComponentActivity() {
         .build()
 
     private fun scanQr() {
-        val scanner = GmsBarcodeScanner.getClient(this, scannerOptions)
+        val scanner = GmsBarcodeScanning.getClient(this, scannerOptions)
         scanner.startScan()
             .addOnSuccessListener { barcode ->
                 barcode.rawValue?.let { url ->

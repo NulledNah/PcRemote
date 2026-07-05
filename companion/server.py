@@ -52,6 +52,7 @@ def create_input_backend() -> InputBackend:
         return WindowsSendInputBackend()
     else:
         from pcremote.backends.linux import LinuxUinputBackend
+        return LinuxUinputBackend()
 
 
 def create_volume_backend() -> VolumeBackend:
@@ -60,6 +61,7 @@ def create_volume_backend() -> VolumeBackend:
         return WindowsVolumeBackend()
     else:
         from pcremote.backends.linux import LinuxPactlBackend
+        return LinuxPactlBackend()
 
 
 def get_key_resolver():

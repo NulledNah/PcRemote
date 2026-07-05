@@ -53,6 +53,8 @@ def _check_linux(results: dict, port: int, logger):
     except Exception:
         pass
 
+    check_user_group_linux(logger)
+
     try:
         r = subprocess.run(
             ["pactl", "info"], capture_output=True, text=True, timeout=3

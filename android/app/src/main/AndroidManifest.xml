@@ -34,13 +34,6 @@
             android:foregroundServiceType="specialUse"
             android:exported="false" />
 
-        <activity
-            android:name="com.journeyapps.barcodescanner.CaptureActivity"
-            android:screenOrientation="portrait"
-            android:exported="false"
-            tools:replace="android:screenOrientation" />
-
-
     </application>
 
 </manifest>
