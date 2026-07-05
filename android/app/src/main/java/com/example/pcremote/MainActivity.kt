@@ -146,14 +146,13 @@ fun PCRemoteApp(
                 onDisconnect = { viewModel.disconnect() },
                 onContinue = { currentScreen = Screen.REMOTE },
                 onScanQr = onScanQr,
-                savedHost = viewModel.savedHost,
-                savedPort = viewModel.savedPort,
-                onUseSaved = {
-                    viewModel.host = viewModel.savedHost
-                    viewModel.port = viewModel.savedPort
-                },
                 isDarkMode = viewModel.isDarkMode,
-                onToggleDarkMode = { viewModel.toggleDarkMode(it) }
+                onToggleDarkMode = { viewModel.toggleDarkMode(it) },
+                favorites = viewModel.favorites,
+                onConnectToFavorite = { viewModel.connectToFavorite(it) },
+                onRemoveFavorite = { viewModel.removeFavorite(it) },
+                onRenameFavorite = { id, name -> viewModel.renameFavorite(id, name) },
+                onSaveFavorite = { viewModel.addCurrentAsFavorite(it) }
             )
         }
         Screen.REMOTE -> {

@@ -15,6 +15,8 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pcremote.ConnectionService
+import com.example.pcremote.data.Favorite
+import com.example.pcremote.data.FavoriteRepository
 import com.example.pcremote.network.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -43,10 +45,14 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     var pcMuted by mutableStateOf(false)
     private var preMuteVolume = 0
 
+    var favorites by mutableStateOf<List<Favorite>>(emptyList())
+    private val favoriteRepo = FavoriteRepository(application)
+
     init {
         savedHost = prefs.getString("saved_host", "") ?: ""
         savedPort = prefs.getString("saved_port", "") ?: ""
         isDarkMode = prefs.getBoolean("dark_mode", false)
+        favorites = favoriteRepo.loadFavorites()
     }
 
     private val connection = object : ServiceConnection {
@@ -169,6 +175,26 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     fun disconnect() {
         service?.disconnect()
         isConnected = false
+    }
+
+    fun addCurrentAsFavorite(name: String) {
+        val portNum = port.toIntOrNull() ?: 8765
+        favorites = favoriteRepo.addFavorite(name, host, portNum)
+    }
+
+    fun removeFavorite(id: String) {
+        favorites = favoriteRepo.removeFavorite(id)
+    }
+
+    fun renameFavorite(id: String, newName: String) {
+        favorites = favoriteRepo.renameFavorite(id, newName)
+    }
+
+    fun connectToFavorite(favorite: Favorite) {
+        host = favorite.host
+        port = favorite.port.toString()
+        favorites = favoriteRepo.bumpFavorite(favorite.id)
+        connect()
     }
 
     fun sendMouseMove(dx: Float, dy: Float) {
