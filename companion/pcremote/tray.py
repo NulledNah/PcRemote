@@ -45,8 +45,12 @@ def _get_log_path():
 
 
 class DashboardWindow:
-    def __init__(self, connection_url: str):
+    def __init__(self, connection_url: str, server_running: bool = True,
+                 on_toggle_server=None):
         self._url = connection_url
+        self._server_running = server_running
+        self._on_toggle_server = on_toggle_server
+        self._dark_mode = False
         self._root = None
         self._ready = threading.Event()
         self._show_event = threading.Event()
@@ -55,25 +59,138 @@ class DashboardWindow:
         self._log_text = None
         self._log_pos = 0
         self._thread = None
+        self._qr_light = None
+        self._qr_dark = None
+        self._qr_label = None
+        self._url_label = None
+        self._log_frame = None
+        self._outer_frame = None
+        self._content_frame = None
+        self._bar_frame = None
+        self._bottom_frame = None
+        self._toggle_btn = None
+        self._dark_btn = None
+        self._server_btn = None
+        self._bar_label = None
+
+    @property
+    def dark_mode(self):
+        return self._dark_mode
+
+    @dark_mode.setter
+    def dark_mode(self, value):
+        self._dark_mode = value
+        if self._root:
+            self._apply_theme()
+
+    def _colors(self):
+        if self._dark_mode:
+            return {
+                'bg': '#1A1210', 'fg': '#EBE0D3',
+                'accent': '#D4A88C', 'accent_dark': '#8B6B5A',
+                'cream': '#3B2A22', 'log_bg': '#2B1A14',
+                'log_fg': '#C4B5A5', 'btn_bg': '#D4A88C',
+                'btn_fg': '#3B2A22', 'bar_bg': '#241914',
+            }
+        else:
+            return {
+                'bg': '#EBE0D3', 'fg': '#3B2A22',
+                'accent': '#7F5A49', 'accent_dark': '#6B493A',
+                'cream': '#FDF0D9', 'log_bg': '#3B2A22',
+                'log_fg': '#EBE0D9', 'btn_bg': '#7F5A49',
+                'btn_fg': '#FDF0D9', 'bar_bg': '#E5D9CA',
+            }
+
+    def _make_qr_images(self):
+        import qrcode
+        from PIL import Image, ImageTk
+
+        for mode, fill, back in [
+            ('light', '#6B493A', '#FDF0D9'),
+            ('dark', '#D4A88C', '#3B2A22'),
+        ]:
+            qr = qrcode.QRCode(box_size=6, border=3)
+            qr.add_data(self._url)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color=fill, back_color=back)
+            img = img.resize((220, 220), Image.NEAREST)
+            photo = ImageTk.PhotoImage(img, master=self._root)
+            if mode == 'light':
+                self._qr_light = photo
+            else:
+                self._qr_dark = photo
+
+    def _apply_theme(self):
+        c = self._colors()
+
+        self._root.configure(bg=c['bg'])
+
+        for widget in [
+            self._outer_frame, self._content_frame,
+            self._bottom_frame, self._qr_frame,
+        ]:
+            if widget:
+                widget.configure(bg=c['bg'])
+
+        if self._bar_frame:
+            self._bar_frame.configure(bg=c['bar_bg'])
+
+        if self._bar_label:
+            self._bar_label.configure(bg=c['bar_bg'], fg=c['fg'])
+
+        if self._qr_label:
+            self._qr_label.configure(
+                image=self._qr_dark if self._dark_mode else self._qr_light,
+                bg=c['cream']
+            )
+
+        if self._url_label:
+            self._url_label.configure(bg=c['bg'], fg=c['accent_dark'])
+
+        if self._log_text:
+            self._log_text.configure(bg=c['log_bg'], fg=c['log_fg'],
+                                     insertbackground=c['log_fg'])
+
+        for btn in [self._toggle_btn, self._server_btn, self._dark_btn]:
+            if btn:
+                btn.configure(bg=c['btn_bg'], fg=c['btn_fg'],
+                              activebackground=c['accent_dark'],
+                              activeforeground=c['btn_fg'])
+
+    def _on_toggle_dark(self):
+        self._dark_mode = not self._dark_mode
+        self._dark_btn.configure(
+            text="Light Mode" if self._dark_mode else "Dark Mode"
+        )
+        self._apply_theme()
+
+    def _on_toggle_server(self):
+        if self._on_toggle_server:
+            self._on_toggle_server()
+            self._server_running = not self._server_running
+            self._server_btn.configure(
+                text="Stop Server" if self._server_running else "Start Server"
+            )
+
+    def _on_toggle_logs(self):
+        self._logs_visible = not self._logs_visible
+        self._toggle_btn.configure(
+            text="Hide Logs" if self._logs_visible else "Show Logs"
+        )
+        self._update_log_visibility()
 
     def _create(self):
         import tkinter as tk
-        import qrcode
-        from PIL import Image, ImageTk, ImageDraw
 
-        BG = '#EBE0D3'
-        ACCENT = '#7F5A49'
-        ACCENT_DARK = '#6B493A'
-        CREAM = '#FDF0D9'
-        LOG_BG = '#3B2A22'
-        LOG_FG = '#EBE0D9'
+        c = self._colors()
 
         self._root = tk.Tk()
         self._root.title("PcRemote Dashboard")
-        self._root.configure(bg=BG)
+        self._root.configure(bg=c['bg'])
         self._root.resizable(True, True)
-        self._root.minsize(400, 300)
         self._root.withdraw()
+
+        self._make_qr_images()
 
         icon_path = _find_icon_path()
         if icon_path:
@@ -87,72 +204,125 @@ class DashboardWindow:
         self._root.columnconfigure(0, weight=1)
         self._root.rowconfigure(0, weight=1)
 
-        outer = tk.Frame(self._root, bg=BG)
-        outer.grid(row=0, column=0, sticky='nsew', padx=15, pady=15)
-        outer.columnconfigure(1, weight=1)
-        outer.rowconfigure(0, weight=1)
+        self._outer_frame = tk.Frame(self._root, bg=c['bg'])
+        self._outer_frame.grid(row=0, column=0, sticky='nsew', padx=12, pady=12)
+        self._outer_frame.columnconfigure(0, weight=1)
 
-        left_frame = tk.Frame(outer, bg=BG)
-        left_frame.grid(row=0, column=0, sticky='nw')
+        # --- top bar: server button ---
+        self._bar_frame = tk.Frame(self._outer_frame, bg=c['bar_bg'])
+        self._bar_frame.grid(row=0, column=0, sticky='ew', pady=(0, 10))
+        self._bar_frame.columnconfigure(0, weight=1)
 
-        qr = qrcode.QRCode(box_size=6, border=3)
-        qr.add_data(self._url)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color=ACCENT_DARK, back_color=CREAM)
-        img = img.resize((220, 220), Image.NEAREST)
-        photo = ImageTk.PhotoImage(img)
-
-        qr_label = tk.Label(left_frame, image=photo, bg=CREAM)
-        qr_label.image = photo
-        qr_label.pack()
-
-        url_label = tk.Label(
-            left_frame, text=self._url, bg=BG, fg=ACCENT_DARK,
-            font=("Consolas", 10)
+        server_label = tk.Label(
+            self._bar_frame, text="PcRemote Server",
+            bg=c['bar_bg'], fg=c['fg'],
+            font=("Segoe UI", 9, "bold"),
         )
-        url_label.pack(pady=(8, 0))
+        self._bar_label = server_label
+        server_label.grid(row=0, column=0, sticky='w', padx=(8, 0), pady=4)
 
-        self._log_frame = tk.Frame(outer, bg=BG)
+        self._server_btn = tk.Button(
+            self._bar_frame,
+            text="Stop Server" if self._server_running else "Start Server",
+            bg=c['btn_bg'], fg=c['btn_fg'],
+            font=("Segoe UI", 9, "bold"),
+            relief=tk.FLAT,
+            activebackground=c['accent_dark'],
+            activeforeground=c['btn_fg'],
+            cursor='hand2',
+            padx=10, pady=2,
+            borderwidth=0,
+            command=self._on_toggle_server,
+        )
+        self._server_btn.grid(row=0, column=1, sticky='e', padx=(0, 8), pady=4)
+
+        # --- content area ---
+        self._content_frame = tk.Frame(self._outer_frame, bg=c['bg'])
+        self._content_frame.grid(row=1, column=0, sticky='nsew')
+        self._outer_frame.rowconfigure(1, weight=1)
+        self._content_frame.columnconfigure(0, weight=1)
+        self._content_frame.rowconfigure(0, weight=1)
+
+        # QR + URL label
+        self._qr_frame = tk.Frame(self._content_frame, bg=c['bg'])
+        self._qr_frame.grid(row=0, column=0, sticky='')
+
+        self._qr_label = tk.Label(
+            self._qr_frame,
+            image=self._qr_light, bg=c['cream']
+        )
+        self._qr_label.pack()
+
+        self._url_label = tk.Label(
+            self._qr_frame, text=self._url,
+            bg=c['bg'], fg=c['accent_dark'],
+            font=("Consolas", 10),
+        )
+        self._url_label.pack(pady=(8, 0))
+
+        # log panel (column 1, hidden by default)
+        self._log_frame = tk.Frame(self._content_frame, bg=c['bg'])
+        self._content_frame.columnconfigure(1, weight=1)
+
         scrollbar = tk.Scrollbar(self._log_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
         self._log_text = tk.Text(
             self._log_frame,
-            bg=LOG_BG, fg=LOG_FG,
+            bg=c['log_bg'], fg=c['log_fg'],
             font=("Consolas", 9),
             yscrollcommand=scrollbar.set,
             wrap=tk.WORD,
-            insertbackground=LOG_FG,
+            insertbackground=c['log_fg'],
             borderwidth=0,
             padx=8, pady=8,
         )
         self._log_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self._log_text.yview)
 
-        bottom_frame = tk.Frame(self._root, bg=BG)
-        bottom_frame.grid(row=1, column=0, sticky='ew', padx=15, pady=(0, 10))
+        # --- bottom bar ---
+        self._bottom_frame = tk.Frame(self._outer_frame, bg=c['bg'])
+        self._bottom_frame.grid(row=2, column=0, sticky='ew', pady=(10, 0))
 
-        self._toggle_btn = tk.Button(
-            bottom_frame, text="Show Logs",
-            bg=ACCENT, fg=CREAM,
+        self._dark_btn = tk.Button(
+            self._bottom_frame, text="Dark Mode",
+            bg=c['btn_bg'], fg=c['btn_fg'],
             font=("Segoe UI", 10, "bold"),
             relief=tk.FLAT,
-            activebackground=ACCENT_DARK,
-            activeforeground=CREAM,
+            activebackground=c['accent_dark'],
+            activeforeground=c['btn_fg'],
             cursor='hand2',
             padx=16, pady=4,
             borderwidth=0,
+            command=self._on_toggle_dark,
+        )
+        self._dark_btn.pack(side=tk.LEFT, padx=(0, 8))
+
+        self._toggle_btn = tk.Button(
+            self._bottom_frame, text="Show Logs",
+            bg=c['btn_bg'], fg=c['btn_fg'],
+            font=("Segoe UI", 10, "bold"),
+            relief=tk.FLAT,
+            activebackground=c['accent_dark'],
+            activeforeground=c['btn_fg'],
+            cursor='hand2',
+            padx=16, pady=4,
+            borderwidth=0,
+            command=self._on_toggle_logs,
         )
         self._toggle_btn.pack(side=tk.LEFT)
 
-        def _on_toggle():
-            self._logs_visible = not self._logs_visible
-            self._toggle_btn.configure(
-                text="Hide Logs" if self._logs_visible else "Show Logs"
-            )
-            self._update_log_visibility()
+        self._root.update_idletasks()
+        w = self._root.winfo_reqwidth()
+        h = self._root.winfo_reqheight()
+        self._root.minsize(w, h)
+        self._log_hidden_width = w
+        self._log_hidden_height = h
 
-        self._toggle_btn.configure(command=_on_toggle)
+        # center on screen
+        ws = self._root.winfo_screenwidth()
+        hs = self._root.winfo_screenheight()
+        self._root.geometry(f"+{(ws-w)//2}+{(hs-h)//2}")
 
         self._poll_logs()
         self._ready.set()
@@ -181,16 +351,33 @@ class DashboardWindow:
         if self._log_frame is None:
             return
         if self._logs_visible:
-            self._log_frame.grid(row=0, column=1, sticky='nsew', padx=(15, 0))
+            self._content_frame.columnconfigure(0, weight=0)
+            self._content_frame.columnconfigure(1, weight=1)
+            self._qr_frame.grid(row=0, column=0, sticky='nw', padx=(0, 15))
+            self._log_frame.grid(row=0, column=1, sticky='nsew')
             self._log_pos = 0
+            self._root.update_idletasks()
+            self._root.minsize(640, 400)
+            self._root.geometry("640x400")
         else:
+            self._qr_frame.grid(row=0, column=0, sticky='')
+            self._content_frame.columnconfigure(0, weight=1)
+            self._content_frame.columnconfigure(1, weight=0)
             self._log_frame.grid_forget()
+            self._root.update_idletasks()
+            self._root.minsize(
+                self._log_hidden_width, self._log_hidden_height
+            )
+            self._root.geometry(
+                f"{self._log_hidden_width}x{self._log_hidden_height}"
+            )
 
     def _on_close(self):
         self.hide()
 
     def _run(self):
         import tkinter as tk
+        import traceback
         try:
             self._create()
             while not self._close_flag.is_set():
@@ -208,7 +395,10 @@ class DashboardWindow:
                 except tk.TclError:
                     break
         except Exception:
-            pass
+            import logging
+            logging.getLogger("pcremote").error(
+                "Dashboard crashed: %s", traceback.format_exc()
+            )
 
     def show(self):
         if self._thread is None:
@@ -251,7 +441,11 @@ def run_tray(on_stop_server, on_start_server, on_quit,
     def do_dashboard(icon, item):
         if state["dashboard"] is None:
             url = get_connection_url()
-            state["dashboard"] = DashboardWindow(url)
+            state["dashboard"] = DashboardWindow(
+                url,
+                server_running=state["running"],
+                on_toggle_server=lambda: do_stop(icon, item) if state["running"] else do_start(icon, item),
+            )
         state["dashboard"].show()
 
     def do_stop(icon, item):
