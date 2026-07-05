@@ -344,6 +344,9 @@ class AppController:
             if results.get("firewall") == "blocked":
                 self.logger.info("Attempting to auto-fix firewall...")
                 auto_fix_firewall(self.args.port, self.logger)
+            if not results.get("port_available"):
+                self.logger.error("Cannot start: port %d is in use.", self.args.port)
+                return
 
         if not self.args.no_input:
             self.logger.info("Initialising input devices...")
@@ -367,6 +370,9 @@ class AppController:
         if results.get("firewall") == "blocked":
             self.logger.info("Attempting to auto-fix firewall...")
             auto_fix_firewall(self.args.port, self.logger)
+        if not results.get("port_available"):
+            self.logger.error("Cannot start: port %d is in use. PcRemote may already be running.", self.args.port)
+            return
 
         self._loop = asyncio.new_event_loop()
 

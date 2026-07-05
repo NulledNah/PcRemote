@@ -2,6 +2,7 @@ import os
 import sys
 import threading
 import time
+import tkinter as tk
 from datetime import datetime
 
 
@@ -49,7 +50,7 @@ class DashboardWindow:
                  on_toggle_server=None):
         self._url = connection_url
         self._server_running = server_running
-        self._on_toggle_server = on_toggle_server
+        self._toggle_server_callback = on_toggle_server
         self._dark_mode = False
         self._root = None
         self._ready = threading.Event()
@@ -70,6 +71,8 @@ class DashboardWindow:
         self._bottom_frame = None
         self._toggle_btn = None
         self._dark_btn = None
+        self._clear_btn = None
+        self._copy_btn = None
         self._server_btn = None
         self._bar_label = None
 
@@ -151,11 +154,20 @@ class DashboardWindow:
             self._log_text.configure(bg=c['log_bg'], fg=c['log_fg'],
                                      insertbackground=c['log_fg'])
 
-        for btn in [self._toggle_btn, self._server_btn, self._dark_btn]:
+        for btn, disabled_fg in [
+            (self._toggle_btn, None),
+            (self._server_btn, c['btn_fg']),
+            (self._dark_btn, None),
+            (self._clear_btn, None),
+            (self._copy_btn, None),
+        ]:
             if btn:
-                btn.configure(bg=c['btn_bg'], fg=c['btn_fg'],
-                              activebackground=c['accent_dark'],
-                              activeforeground=c['btn_fg'])
+                kw = dict(bg=c['btn_bg'], fg=c['btn_fg'],
+                          activebackground=c['accent_dark'],
+                          activeforeground=c['btn_fg'])
+                if disabled_fg:
+                    kw['disabledforeground'] = disabled_fg
+                btn.configure(**kw)
 
     def _on_toggle_dark(self):
         self._dark_mode = not self._dark_mode
@@ -165,12 +177,18 @@ class DashboardWindow:
         self._apply_theme()
 
     def _on_toggle_server(self):
-        if self._on_toggle_server:
-            self._on_toggle_server()
+        if self._toggle_server_callback:
+            self._server_btn.configure(state="disabled",
+                                       text="Stopping..." if self._server_running else "Starting...")
+            self._toggle_server_callback()
             self._server_running = not self._server_running
-            self._server_btn.configure(
-                text="Stop Server" if self._server_running else "Start Server"
-            )
+            self._root.after(1500, self._update_server_button)
+
+    def _update_server_button(self):
+        self._server_btn.configure(
+            state="normal",
+            text="Stop Server" if self._server_running else "Start Server"
+        )
 
     def _on_toggle_logs(self):
         self._logs_visible = not self._logs_visible
@@ -179,9 +197,20 @@ class DashboardWindow:
         )
         self._update_log_visibility()
 
-    def _create(self):
-        import tkinter as tk
+    def _on_clear_log(self):
+        if self._log_text:
+            self._log_text.delete("1.0", tk.END)
+            log_path = _get_log_path()
+            if os.path.isfile(log_path):
+                self._log_pos = os.path.getsize(log_path)
 
+    def _on_copy_log(self):
+        if self._log_text:
+            content = self._log_text.get("1.0", tk.END)
+            self._root.clipboard_clear()
+            self._root.clipboard_append(content.rstrip('\n'))
+
+    def _create(self):
         c = self._colors()
 
         self._root = tk.Tk()
@@ -225,6 +254,7 @@ class DashboardWindow:
             self._bar_frame,
             text="Stop Server" if self._server_running else "Start Server",
             bg=c['btn_bg'], fg=c['btn_fg'],
+            disabledforeground=c['btn_fg'],
             font=("Segoe UI", 9, "bold"),
             relief=tk.FLAT,
             activebackground=c['accent_dark'],
@@ -312,6 +342,32 @@ class DashboardWindow:
         )
         self._toggle_btn.pack(side=tk.LEFT)
 
+        self._clear_btn = tk.Button(
+            self._bottom_frame, text="Clear",
+            bg=c['btn_bg'], fg=c['btn_fg'],
+            font=("Segoe UI", 10, "bold"),
+            relief=tk.FLAT,
+            activebackground=c['accent_dark'],
+            activeforeground=c['btn_fg'],
+            cursor='hand2',
+            padx=12, pady=4,
+            borderwidth=0,
+            command=self._on_clear_log,
+        )
+
+        self._copy_btn = tk.Button(
+            self._bottom_frame, text="Copy",
+            bg=c['btn_bg'], fg=c['btn_fg'],
+            font=("Segoe UI", 10, "bold"),
+            relief=tk.FLAT,
+            activebackground=c['accent_dark'],
+            activeforeground=c['btn_fg'],
+            cursor='hand2',
+            padx=12, pady=4,
+            borderwidth=0,
+            command=self._on_copy_log,
+        )
+
         self._root.update_idletasks()
         w = self._root.winfo_reqwidth()
         h = self._root.winfo_reqheight()
@@ -328,7 +384,6 @@ class DashboardWindow:
         self._ready.set()
 
     def _poll_logs(self):
-        import tkinter as tk
         if self._close_flag.is_set():
             return
         if self._logs_visible and self._log_text is not None:
@@ -356,14 +411,18 @@ class DashboardWindow:
             self._qr_frame.grid(row=0, column=0, sticky='nw', padx=(0, 15))
             self._log_frame.grid(row=0, column=1, sticky='nsew')
             self._log_pos = 0
+            self._clear_btn.pack(side=tk.LEFT, padx=(8, 0))
+            self._copy_btn.pack(side=tk.LEFT, padx=(4, 0))
             self._root.update_idletasks()
-            self._root.minsize(640, 400)
-            self._root.geometry("640x400")
+            self._root.minsize(1020, 420)
+            self._root.geometry("1020x420")
         else:
             self._qr_frame.grid(row=0, column=0, sticky='')
             self._content_frame.columnconfigure(0, weight=1)
             self._content_frame.columnconfigure(1, weight=0)
             self._log_frame.grid_forget()
+            self._clear_btn.pack_forget()
+            self._copy_btn.pack_forget()
             self._root.update_idletasks()
             self._root.minsize(
                 self._log_hidden_width, self._log_hidden_height
@@ -376,7 +435,6 @@ class DashboardWindow:
         self.hide()
 
     def _run(self):
-        import tkinter as tk
         import traceback
         try:
             self._create()
