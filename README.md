@@ -4,8 +4,9 @@ Use your Android phone as a trackpad and keyboard for your PC over WiFi.
 Scan a QR code and you're connected. No Bluetooth, no cables.
 
 <p align="center">
-  <img src="screenshots/dashboard.png" width="420" alt="Dashboard"><br>
-  <sub>Desktop dashboard — scan to connect</sub>
+  <img src="screenshots/dashboardLight.png" width="300" alt="Dashboard light">
+  <img src="screenshots/DashboardDark.png" width="300" alt="Dashboard dark"><br>
+  <sub>Desktop dashboard — light and dark themes</sub>
 </p>
 
 <p align="center">
