@@ -32,7 +32,7 @@ First cross-platform release. Windows support with native system tray, dashboard
 
 ```
 PcRemoteServer.exe
-697F7C8F81AE657BD49593E782E55D9FEFDC16B0A453D00A507ECB3AAA41BE59
+25C25B05F559B37706ADECE6C172CB072BCF002CA918EC1994B95F64580A67BA
 ```
 
 ### Known limitations
