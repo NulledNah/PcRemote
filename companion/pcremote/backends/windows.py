@@ -159,7 +159,6 @@ class WindowsSendInputBackend(InputBackend):
         self._dy = 0.0
         self._last_flush = time.monotonic()
         self._ticker_task = None
-        self._debug_samples = []
         self._debug_total = 0
         self._debug_count = 0
         self._debug_max = 0.0

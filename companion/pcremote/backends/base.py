@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Optional
 
 
 class InputBackend(ABC):
@@ -45,13 +44,3 @@ class VolumeBackend(ABC):
     @abstractmethod
     def toggle_mute(self) -> bool:
         ...
-
-
-class QrBackend(ABC):
-    @abstractmethod
-    def generate(self, data: str) -> Optional[str]:
-        """Returns QR as string for terminal, or None if unavailable."""
-
-    @abstractmethod
-    def display(self, data: str):
-        """Display QR code to the user (terminal, GUI window, etc.)."""

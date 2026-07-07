@@ -20,7 +20,7 @@ from websockets.asyncio.server import serve
 
 from pcremote import VERSION, PROTOCOL_VERSION
 from pcremote.backends.base import InputBackend, VolumeBackend
-from pcremote.backends.qr import QrBackends
+from pcremote.backends.qr import QrCodeDisplay
 from pcremote.config import load_config, get_or_create_token
 from pcremote.logsetup import setup as setup_logging, get as get_logger
 from pcremote.diagnostics import run_diagnostics, auto_fix_firewall
@@ -30,9 +30,6 @@ from pcremote.protocol import (
     MSG_VOLUME_GET, MSG_VOLUME_SET, MSG_VOLUME_MUTE, MSG_AUTH, MSG_PING, MSG_PONG,
     decode_message,
 )
-
-_profile_stats: dict = {}
-_server_control: dict = {}
 
 
 def get_local_ip() -> str:
@@ -72,21 +69,6 @@ def get_key_resolver():
         from pcremote.backends.linux import resolve_key as rk, needs_shift as ns
         return rk, ns
 
-
-def _profile_msg(msg_type: str, start_time: float, logger):
-    elapsed = (time.monotonic() - start_time) * 1000
-    if msg_type not in _profile_stats:
-        _profile_stats[msg_type] = {"total": 0.0, "count": 0, "max": 0.0}
-    s = _profile_stats[msg_type]
-    s["total"] += elapsed
-    s["count"] += 1
-    if elapsed > s["max"]:
-        s["max"] = elapsed
-    if s["count"] % 500 == 0:
-        logger.debug(
-            "msg=%s avg=%.2fms max=%.2fms count=%d",
-            msg_type, s["total"] / s["count"], s["max"], s["count"],
-        )
 
 
 async def handle_client(
@@ -134,7 +116,6 @@ async def handle_client(
                 continue
 
             connected_clients[client_id] = time.time()
-            msg_start = time.monotonic()
 
             if input_dev is None and msg_type not in (MSG_VOLUME_GET, MSG_VOLUME_SET, MSG_VOLUME_MUTE, MSG_PING):
                 continue
@@ -142,7 +123,6 @@ async def handle_client(
             try:
                 if msg_type == MSG_MOUSE_MOVE:
                     input_dev.mouse_move(data.get("x", 0), data.get("y", 0))
-                    _profile_msg("m", msg_start, logger)
                 elif msg_type == MSG_MOUSE_DOWN:
                     input_dev.mouse_button(data.get("b", "left"), "down")
                 elif msg_type == MSG_MOUSE_UP:
@@ -201,14 +181,6 @@ async def handle_client(
         logger.info("Client disconnected: %s", client_addr)
 
 
-async def cleanup_stale_clients(connected_clients: dict, timeout: float = 30.0):
-    while True:
-        await asyncio.sleep(10)
-        now = time.time()
-        stale = [cid for cid, ts in connected_clients.items() if now - ts > timeout]
-        for cid in stale:
-            connected_clients.pop(cid, None)
-
 
 class ServerInstance:
     def __init__(self, port, input_dev, volume_dev, auth_token, require_auth,
@@ -248,7 +220,6 @@ class ServerInstance:
             self.input_dev.start_ticker(asyncio.get_running_loop())
 
         connected_clients: dict = {}
-        asyncio.create_task(cleanup_stale_clients(connected_clients))
 
         async def handler(ws):
             await handle_client(ws, self.input_dev, self.volume_dev,
@@ -290,7 +261,7 @@ class AppController:
         else:
             self.input_dev = create_input_backend()
         self.volume_dev = create_volume_backend()
-        self.qr_backend = QrBackends.create()
+        self.qr_backend = QrCodeDisplay()
 
     def _destroy_backends(self):
         if self.input_dev:

@@ -79,7 +79,7 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
                 error = msg
                 isConnected = false
             }
-            service?.setOnMessageListener { text ->
+            service?.onMessage = { text ->
                 handleServerMessage(text)
             }
 
@@ -261,10 +261,6 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
             sendKeyUp(entry.baseKey)
             if (entry.needsShift) sendKeyUp("KEY_LEFTSHIFT")
         }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
     }
 
     companion object {

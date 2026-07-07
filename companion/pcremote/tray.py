@@ -31,12 +31,8 @@ def _load_image():
         except Exception:
             pass
 
-    from PIL import Image, ImageDraw
-    img = Image.new('RGB', (64, 64), color='#1a73e8')
-    draw = ImageDraw.Draw(img)
-    draw.rectangle([16, 20, 48, 44], fill='white')
-    draw.polygon([(30, 44), (50, 32), (50, 56)], fill='white')
-    return img
+    from PIL import Image
+    return Image.new('RGB', (64, 64), color='#1a73e8')
 
 
 def _get_log_path():

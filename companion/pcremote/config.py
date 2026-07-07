@@ -46,16 +46,5 @@ def get_or_create_token(config: dict = None) -> str:
     return token
 
 
-def get_setting(key: str, default=None):
-    config = load_config()
-    return config.get(key, default)
-
-
-def set_setting(key: str, value):
-    config = load_config()
-    config[key] = value
-    save_config(config)
-
-
 def get_data_dir() -> str:
     return _config_dir()

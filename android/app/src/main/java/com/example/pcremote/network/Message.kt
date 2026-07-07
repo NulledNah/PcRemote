@@ -37,10 +37,3 @@ data class VolSet(
 )
 
 data class VolMute(@SerializedName("t") val type: String = "vm")
-
-data class VolState(
-    @SerializedName("t") val type: String = "",
-    @SerializedName("v") val volume: Int = 50,
-    @SerializedName("m") val muted: Boolean = false,
-    @SerializedName("f") val from: String = ""
-)

@@ -1,10 +1,5 @@
 import os
-import subprocess
-import tempfile
 import threading
-from typing import Optional
-
-from .base import QrBackend
 
 
 def _find_icon_path():
@@ -33,32 +28,23 @@ def _set_window_icon(root):
             pass
 
 
-class QrBackends:
-    @staticmethod
-    def create() -> QrBackend:
-        backend = PythonQrcodeBackend()
-        if backend.available():
-            return backend
-        return FallbackQrBackend()
-
-
-class PythonQrcodeBackend(QrBackend):
+class QrCodeDisplay:
     def __init__(self):
         self._qr_window = None
         self._qr_close_flag = None
-
-    def available(self) -> bool:
-        try:
-            import qrcode  # noqa: F401
-            return True
-        except ImportError:
-            return False
 
     def close_qr(self):
         if self._qr_close_flag:
             self._qr_close_flag.set()
 
-    def generate(self, data: str) -> Optional[str]:
+    def display(self, data: str) -> bool:
+        self.close_qr()
+        if os.name == 'nt':
+            if self._display_tkinter(data):
+                return True
+        return self._display_terminal(data)
+
+    def _display_terminal(self, data: str) -> bool:
         try:
             import qrcode
             qr = qrcode.QRCode(box_size=1, border=2)
@@ -75,33 +61,11 @@ class PythonQrcodeBackend(QrBackend):
                     else:
                         parts.append('  ')
                 lines.append(''.join(parts))
-            return '\n'.join(lines)
+            print()
+            print('\n'.join(lines))
+            print()
+            return True
         except Exception:
-            return None
-
-    def display(self, data: str) -> bool:
-        self.close_qr()
-        if os.name == 'nt':
-            if self._display_tkinter(data):
-                return True
-            result = self.generate(data)
-            if result:
-                print()
-                print(result)
-                print()
-                return True
-            if self._display_file(data):
-                return True
-            return False
-        else:
-            result = self.generate(data)
-            if result:
-                print()
-                print(result)
-                print()
-                return True
-            if self._display_file(data):
-                return True
             return False
 
     def _display_tkinter(self, data: str) -> bool:
@@ -168,54 +132,3 @@ class PythonQrcodeBackend(QrBackend):
 
         threading.Thread(target=_run, daemon=True).start()
         return True
-
-    def _display_file(self, data: str) -> bool:
-        path = None
-        try:
-            import qrcode
-            from PIL import Image
-            qr = qrcode.QRCode(box_size=12, border=4)
-            qr.add_data(data)
-            qr.make(fit=True)
-            img = qr.make_image(fill_color="black", back_color="white")
-            w, h = img.size
-            img = img.resize((w * 2, h * 2), Image.NEAREST)
-            fd, path = tempfile.mkstemp(suffix='.png', prefix='pcremote_qr_')
-            os.close(fd)
-            img.save(path, format='PNG')
-        except Exception as e:
-            import logging
-            logging.getLogger("pcremote").debug("QR file generation failed: %s", e)
-            return False
-
-        opened = False
-        try:
-            if os.name == 'nt':
-                os.startfile(path)
-            else:
-                subprocess.Popen(['xdg-open', path],
-                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            opened = True
-        except Exception:
-            pass
-
-        print()
-        if opened:
-            print(f"  QR image opened. Connect to: {data}")
-        else:
-            print(f"  QR saved to: {path}")
-            print(f"  Connect to: {data}")
-        return True
-
-
-class FallbackQrBackend(QrBackend):
-    def generate(self, data: str) -> Optional[str]:
-        return None
-
-    def close_qr(self):
-        pass
-
-    def display(self, data: str):
-        print()
-        print(f"  QR code not available. Connect to: {data}")
-        print()

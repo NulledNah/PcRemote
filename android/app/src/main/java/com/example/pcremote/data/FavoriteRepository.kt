@@ -13,10 +13,12 @@ class FavoriteRepository(context: Context) {
     private val appContext = context.applicationContext
 
     fun loadFavorites(): List<Favorite> {
-        val migrated = migrateLegacy()
-        if (migrated != null) return migrated
-
-        val json = prefs.getString(KEY_FAVORITES, null) ?: return emptyList()
+        val json = prefs.getString(KEY_FAVORITES, null)
+        if (json == null) {
+            val migrated = migrateLegacyOnce()
+            if (migrated.isNotEmpty()) return migrated
+            return emptyList()
+        }
         return try {
             val type = object : TypeToken<List<Favorite>>() {}.type
             gson.fromJson(json, type) ?: emptyList()
@@ -67,15 +69,14 @@ class FavoriteRepository(context: Context) {
         return favorites
     }
 
-    private fun migrateLegacy(): List<Favorite>? {
+    private fun migrateLegacyOnce(): List<Favorite> {
         val legacyPrefs = appContext.getSharedPreferences("pc_remote_prefs", Context.MODE_PRIVATE)
         val savedHost = legacyPrefs.getString("saved_host", "") ?: ""
         val savedPort = legacyPrefs.getString("saved_port", "") ?: ""
 
-        if (savedHost.isBlank() || savedPort.isBlank()) return null
-        if (prefs.contains(KEY_FAVORITES)) return null
+        if (savedHost.isBlank() || savedPort.isBlank()) return emptyList()
 
-        val port = savedPort.toIntOrNull() ?: return null
+        val port = savedPort.toIntOrNull() ?: return emptyList()
         val favorites = listOf(
             Favorite(name = "Recent", host = savedHost, port = port)
         )

@@ -2,8 +2,6 @@ import json
 from typing import Optional
 
 
-PROTOCOL_VERSION = 2
-
 MSG_MOUSE_MOVE = "m"
 MSG_MOUSE_DOWN = "md"
 MSG_MOUSE_UP = "mu"
@@ -15,7 +13,6 @@ MSG_TYPE_TEXT = "tx"
 MSG_VOLUME_GET = "vg"
 MSG_VOLUME_SET = "vs"
 MSG_VOLUME_MUTE = "vm"
-MSG_VOLUME_STATUS = "vs"
 MSG_AUTH = "au"
 MSG_PING = "pi"
 MSG_PONG = "po"
